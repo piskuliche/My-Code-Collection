@@ -18,7 +18,7 @@ colname=args.n
 colnum=int(args.col)
 block=int(args.b)
 skip=int(args.s)
-t_val=2.262
+t_val=stats.t.ppf(0.95,block-1)
 
 
 data = np.genfromtxt(filename,dtype=float,usecols=(colnum),unpack=True, skip_header=skip)
@@ -40,7 +40,7 @@ for b in range(0,block,1):
     AV+=avg[b]
 AV= AV / block
 if (block > 1):
-    STDEV=np.std(avg, ddof=1)*t_val/np.sqrt(10)
+    STDEV=np.std(avg, ddof=1)*t_val/np.sqrt(block)
 else:
     STDEV=0
 outfile=colname+".avg"
