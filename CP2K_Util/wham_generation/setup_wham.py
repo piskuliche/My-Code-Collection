@@ -33,6 +33,7 @@ sub.write('module load cp2k/6.0/popt\n\n')
 sub.write('cd $MOAB_JOBARRAYINDEX\n')
 sub.write('mpirun -np 10 cp2k.popt inp_const.cp2k > run1.new\n')
 sub.write("sed 's/\([ \t]\+[^ \t]*\)\{3\}$//' out.colvar > lif.distance\n")
+sub.write("sed -i '1,20000 s/^/#/' lif.distance\n")
 sub.write('cd ../\n')
 
 for i in range(0,bins):
