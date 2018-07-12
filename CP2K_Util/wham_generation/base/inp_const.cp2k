@@ -1,0 +1,186 @@
+&FORCE_EVAL
+  METHOD FIST
+  &MM 
+    &FORCEFIELD
+     &SPLINE
+       EMAX_SPLINE 500
+     &END SPLINE
+     &BEND
+        ATOMS H O H
+        K 0.
+        THETA0 1.8
+      &END BEND
+      &BOND
+        ATOMS O H
+        K 0.
+        R0 1.8
+      &END BOND
+      &CHARGE
+        ATOM O
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.4238
+      &END CHARGE
+      &CHARGE
+        ATOM F
+        CHARGE -1.0
+      &END CHARGE
+      &CHARGE
+        ATOM Li 
+        CHARGE 1.0
+      &END CHARGE
+      &NONBONDED
+        @INCLUDE ./genpot_lif
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE SPME
+        ALPHA .3
+        GMAX 30
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM 
+  &SUBSYS
+    &TOPOLOGY
+      COORD_FILE_FORMAT XYZ
+      COORD_FILE_NAME ./ion_pair_equil.xyz
+      CONN_FILE_FORMAT MOL_SET
+      &MOL_SET
+        &MOLECULE
+         NMOL 96
+         CONN_FILE_FORMAT PSF
+         CONN_FILE_NAME ./topology_fist_WAT.psf
+        &END
+        &MOLECULE
+         NMOL 1
+         CONN_FILE_FORMAT PSF
+         CONN_FILE_NAME ./topology_fist_Li.psf
+        &END
+        &MOLECULE
+         NMOL 1
+         CONN_FILE_FORMAT PSF
+         CONN_FILE_NAME ./topology_fist_F.psf
+        &END
+      &END
+    &END TOPOLOGY
+    &CELL
+      ABC 14.219066 14.219066 14.219066
+    &END CELL
+     &KIND H                           
+       BASIS_SET DZVP-GTH                 
+       POTENTIAL GTH-PBE-q1                 
+     &END KIND                        
+     &KIND O                           
+       BASIS_SET DZVP-GTH                 
+       POTENTIAL GTH-PBE-q6                 
+     &END KIND                        
+     &KIND Na                           
+       BASIS_SET DZVP-GTH                 
+       POTENTIAL GTH-PBE-q9                 
+       MASS 22.0
+     &END KIND                        
+     &KIND Cl                           
+       BASIS_SET DZVP-GTH                 
+       POTENTIAL GTH-PBE-q7                 
+       MASS 35.0
+     &END KIND   
+     &COLVAR
+         &DISTANCE
+             ATOMS 1 2
+             &POINT
+                 ATOMS 289
+             &END POINT
+             &POINT
+                 ATOMS 290
+             &END POINT
+         &END DISTANCE
+     &END COLVAR
+   &END SUBSYS                        
+    &PRINT
+      &PROGRAM_RUN_INFO
+        &EACH
+          MD 100
+        &END EACH
+      &END PROGRAM_RUN_INFO
+    &END PRINT
+ &END FORCE_EVAL
+ &GLOBAL
+  PROJECT free
+  WALLTIME 23:50:00
+  RUN_TYPE MD  
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &CONSTRAINT
+    CONSTRAINT_INIT T
+    SHAKE_TOLERANCE 1E-10
+    &G3X3
+      DISTANCES 1.8897268 1.8897268 3.0859239
+      MOLECULE 1
+      ATOMS 1 2 3
+    &END G3X3
+    &COLLECTIVE
+        COLVAR 1
+        INTERMOLECULAR TRUE
+        &RESTRAINT
+            K 0.005
+        &END RESTRAINT
+        TARGET [angstrom] 2.6
+    &END COLLECTIVE
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVT
+    STEPS 50000000
+    TIMESTEP 0.5
+    TEMPERATURE 300
+    !COMVEL_TOL 1.E-7
+    &THERMOSTAT
+      REGION GLOBAL
+      TYPE NOSE
+      &NOSE
+        LENGTH 3
+        YOSHIDA 3
+        MTS 2
+        TIMECON [wavenumber_t] 1000 
+      &END NOSE
+    &END THERMOSTAT
+    &PRINT
+      &PROGRAM_RUN_INFO
+        &EACH
+          MD 1000
+        &END EACH
+      &END PROGRAM_RUN_INFO
+      &ENERGY
+        &EACH
+          MD 1000
+        &END EACH
+      &END ENERGY
+    &END PRINT
+  &END MD
+  &PRINT
+    &VELOCITIES
+      &EACH
+        MD 500
+      &END EACH
+    &END VELOCITIES
+    &TRAJECTORY
+      &EACH
+        MD 500
+      &END EACH
+    &END TRAJECTORY
+    &RESTART_HISTORY OFF
+    &END RESTART_HISTORY
+    &RESTART ON
+      &EACH
+        MD 10000
+      &END EACH
+    &END RESTART
+  &END PRINT
+&END MOTION
+#&EXT_RESTART
+#  RESTART_FILE_NAME ./restart
+#&END EXT_RESTART

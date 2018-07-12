@@ -1,0 +1,22 @@
+ PSF
+
+   1 !NTITLE
+     Topology file for Li
+
+     1  !NATOM
+       1 Li      1 Li   Li   Li         0.000000        4.60000       0
+
+     0  !NBOND
+
+     0   !NTHETA
+
+     0   !NPHI
+
+     0   !NIMPHI
+
+     0   !NDON
+
+     0   !NACC
+
+     0   !NNB
+

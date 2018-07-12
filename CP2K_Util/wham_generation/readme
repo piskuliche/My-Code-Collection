@@ -1,0 +1,5 @@
+This directory contains a few things.
+
+setup_wham.py: a file for the calculation of ion pairing windows 
+
+example input file and supporting potential files for the lif ion pairing for use with wham

@@ -1,0 +1,22 @@
+ PSF
+
+   1 !NTITLE
+     Topology file for F 
+
+     1  !NATOM
+       1 F       1 F    F    F          0.000000       18.00000       0
+
+     0  !NBOND
+
+     0   !NTHETA
+
+     0   !NPHI
+
+     0   !NIMPHI
+
+     0   !NDON
+
+     0   !NACC
+
+     0   !NNB
+

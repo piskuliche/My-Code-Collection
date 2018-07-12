@@ -1,0 +1,90 @@
+        &GENPOT
+          ATOMS  O   O 
+          FUNCTION  D0*((R0/R)^12-2.0*(R0/R)^6)
+          PARAMETERS  D0  R0
+          UNITS  kcalmol  angstrom
+          VARIABLES   R
+          VALUES  0.155400E+00  0.355320E+01
+          RCUT   12.0000
+        &END GENPOT
+        &GENPOT
+          ATOMS  O   H 
+          FUNCTION  D0*((R0/R)^12-2.0*(R0/R)^6)
+          PARAMETERS  D0  R0
+          UNITS  kcalmol  angstrom
+          VARIABLES   R
+          VALUES  0.000000E+00  0.177660E+01
+          RCUT   12.0000
+        &END GENPOT
+        &GENPOT
+          ATOMS  O   Li
+          FUNCTION  D0*((R0/R)^12-2.0*(R0/R)^6)
+          PARAMETERS  D0  R0
+          UNITS  kcalmol  angstrom
+          VARIABLES   R
+          VALUES  0.228743E+00  0.256760E+01
+          RCUT   12.0000
+        &END GENPOT
+        &GENPOT
+          ATOMS  O   F 
+          FUNCTION  D0*((R0/R)^12-2.0*(R0/R)^6)
+          PARAMETERS  D0  R0
+          UNITS  kcalmol  angstrom
+          VARIABLES   R
+          VALUES  0.339111E-01  0.403360E+01
+          RCUT   12.0000
+        &END GENPOT
+        &GENPOT
+          ATOMS  H   H 
+          FUNCTION  D0*((R0/R)^12-2.0*(R0/R)^6)
+          PARAMETERS  D0  R0
+          UNITS  kcalmol  angstrom
+          VARIABLES   R
+          VALUES  0.000000E+00  0.000000E+00
+          RCUT   12.0000
+        &END GENPOT
+        &GENPOT
+          ATOMS  H   Li
+          FUNCTION  D0*((R0/R)^12-2.0*(R0/R)^6)
+          PARAMETERS  D0  R0
+          UNITS  kcalmol  angstrom
+          VARIABLES   R
+          VALUES  0.000000E+00  0.791000E+00
+          RCUT   12.0000
+        &END GENPOT
+        &GENPOT
+          ATOMS  H   F 
+          FUNCTION  D0*((R0/R)^12-2.0*(R0/R)^6)
+          PARAMETERS  D0  R0
+          UNITS  kcalmol  angstrom
+          VARIABLES   R
+          VALUES  0.000000E+00  0.225700E+01
+          RCUT   12.0000
+        &END GENPOT
+        &GENPOT
+          ATOMS  Li  Li
+          FUNCTION  D0*((R0/R)^12-2.0*(R0/R)^6)
+          PARAMETERS  D0  R0
+          UNITS  kcalmol  angstrom
+          VARIABLES   R
+          VALUES  0.336700E+00  0.158200E+01
+          RCUT   12.0000
+        &END GENPOT
+        &GENPOT
+          ATOMS  Li  F 
+          FUNCTION  D0*((R0/R)^12-2.0*(R0/R)^6)
+          PARAMETERS  D0  R0
+          UNITS  kcalmol  angstrom
+          VARIABLES   R
+          VALUES  0.499157E-01  0.304800E+01
+          RCUT   12.0000
+        &END GENPOT
+        &GENPOT
+          ATOMS  F   F 
+          FUNCTION  D0*((R0/R)^12-2.0*(R0/R)^6)
+          PARAMETERS  D0  R0
+          UNITS  kcalmol  angstrom
+          VARIABLES   R
+          VALUES  0.740000E-02  0.451400E+01
+          RCUT   12.0000
+        &END GENPOT
