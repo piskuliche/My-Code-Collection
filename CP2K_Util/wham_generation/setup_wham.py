@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 #This is an example code for the calculation of a Potential of Mean Force 
 #from CP2K simulations.
 #This sets up the various windows and gets them ready to run.
@@ -15,7 +17,7 @@ import numpy as np
 start=1
 end = 7
 sep = end - start
-bins = 20
+bins = 30
 
 meta = open('wham_metadata.info', 'w')
 sub = open('run_windows.sh','w')
@@ -46,13 +48,13 @@ for i in range(0,bins):
     f.write('\t INTERMOLECULAR TRUE\n')
     f.write('\t TARGET [angstrom] %s\n' % ro)
     f.write('\t\t&RESTRAINT\n')
-    f.write('\t\t K 0.005\n')
+    f.write('\t\t K 0.0005\n')
     f.write('\t\t&END RESTRAINT\n')
     f.write('\t&END COLLECTIVE\n')
     f.close()
     shutil.copyfile('inp_const.cp2k',str(i)+'/inp_const.cp2k')
 
-    meta.write('%s/lif.distance %s 0.01\n' % (str(i), ro))
+    meta.write('%s/lif.distance %s 26.255\n' % (str(i), ro/0.529177249))
     
 meta.close()
 sub.close
