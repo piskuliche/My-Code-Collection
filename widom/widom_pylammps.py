@@ -27,7 +27,7 @@ def randnum():
     return rand
 
 # Import LAMMPS and initialize it
-from lammps import lammps
+from lammps import Pylammps
 lmp = lammps()
 
 # read in input file
@@ -35,24 +35,24 @@ lmp = lammps()
 lines = open(infile,'r').readlines()
 for line in lines: lmp.command(line)
 
-lmp.command("run 0")
+lmp.run(0)
 
-lmp.command("variable e equal pe")
+lmp.variable("e equal pe")
 
 # calculate the energy of the system
-lmp.command("run 0")
+lmp.run(0)
 
-natoms = lmp.extract_global("natoms", 0)
-inite = lmp.extract_compute("thermo_pe", 0,0,) / natoms
-vol = lmp.extract_global("boxxhi",1)**3
+natoms = lmp.eval("natoms")
+inite = lmp.eval("thermo_pe") / natoms
+vol = lmp.system.xhi**3
 
 
 if rank==0:
     print("%s atoms in the system" % natoms)
     print("%s is the initial energy (kcal/mol)" % inite)
 
-lmp.command("molecule methane ch4.txt toff 2")
-lmp.command("run 100000")
+lmp.molecule("methane ch4.txt toff 2")
+lmp.run(100000)
 
 # Array Parameters
 """
@@ -79,16 +79,16 @@ for i in range(nsteps):
     Bi_step, MUex_step = 0.0, 0.0
     # Runs 1000 steps, computes pe, grabs volume, grabs density
     lmp.command("run 1000")
-    E_step=lmp.extract_compute("thermo_pe",0,0)
-    vol = lmp.extract_global("boxxhi",1)**3
-    rho = lmp.get_thermo("density")
+    E_step=lmp.eval("pe")
+    vol = lmp.system.xhi**3
+    rho = lmp.eval("density")
     # Loop over insertion attempts.
     for i in range(ninsert):
-        lmp.command("create_atoms 0 random 1 %s NULL mol methane %s" % (randnum(),randnum()))
-        lmp.command("group del type 3")
-        lmp.command("run 0")
-        bolz.append(math.exp(-(lmp.extract_compute("thermo_pe",0,0)-E_step)/(natoms*kb*T)))
-        lmp.command("delete_atoms group del")
+        lmp.create_atoms("0 random 1", randnum(), "NULL mol methane", randnum())
+        lmp.group("del type 3")
+        lmp.run(0)
+        bolz.append(math.exp(-(lmp.eval("pe")-E_step)/(natoms*kb*T)))
+        lmp.delete_atoms("group del")
     # Calculates step - based quantities.
     Bi_step = np.sum(bolz) * vol / ninsert
     MUex_step = np.sum(bolz) / ninsert
