@@ -2,6 +2,17 @@ import numpy as np
 import sys,random,math
 from mpi4py import MPI
 
+"""
+This is a code for doing widom insertions inside LAMMPS.
+
+         bolz : e^-du/kbT array over ninsert
+      Bi_step : step value of V*e^-du/kbT
+           Bi : sum over steps of V*e^-du/kbT
+    MUex_step : step value of e^-du/kbT
+         MUex : Excess chemical potential 
+       E_step : The energy of the step (before insertions)
+"""
+
 # UNITS BLOCK
 kb=0.0019872041 #kcal/molK
 T=298.15 # K
@@ -52,18 +63,9 @@ if rank==0:
     print("%s is the initial energy (kcal/mol)" % inite)
 
 lmp.command("molecule methane ch4.txt toff 2")
-lmp.command("run 100000")
+lmp.command("run 1000")
 
-# Array Parameters
-"""
-         bolz : e^-du/kbT array over ninsert
-      Bi_step : step value of V*e^-du/kbT
-           Bi : sum over steps of V*e^-du/kbT
-    MUex_step : step value of e^-du/kbT
-         MUex : Excess chemical potential 
-       E_step : The energy of the step (before insertions)
-"""
-
+# Initialize
 Bi_step, Bi, MUex_step, MUex, MUinf = 0.0, 0.0, 0.0, 0.0, 0.0
 av_vol, av_rho = 0.0, 0.0
 E_step = 0.0
