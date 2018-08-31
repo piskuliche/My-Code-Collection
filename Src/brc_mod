@@ -1,6 +1,0 @@
-# This Sets The Correct Path Variables for the python code collection
-if [ -f ~/.bash_PCC ]; then
-    #PCCFLAG (DO NOT DELETE)
-    source ~/.bash_PCC
-fi
-
