@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+#This is a simple code that takes nbins and histograms a common file between all of them.
+
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
