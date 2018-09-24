@@ -76,9 +76,8 @@ if rank == 0:
     print("%s atoms in the system" % natoms)
     print("%s is the initial energy (kcal/mol)" % inite)
 
-lmp.command("molecule ins %s toff 2" % molfile)
 run(100000)
-
+lmp.command("molecule ins %s toff 2" % molfile)
 # Initialize
 vol = []
 nrho = []
