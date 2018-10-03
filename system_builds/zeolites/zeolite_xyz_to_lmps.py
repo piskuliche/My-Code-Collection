@@ -1,13 +1,25 @@
+#!/usr/bin/env python
 import numpy as np
 import sys 
 
+def enterbounds(name):
+    try:
+        val = float(raw_input('Enter %s:\n' % name))
+    except ValueError:
+        print("Not a floating point number")
+        exit(1)
+    return val
+
 arg = sys.argv
 inp_file=""
-if len(arg) != 2:
+
+
+if len(arg) == 3:
     inp_file=str(arg[1])
     out_file=str(arg[2])
 else:
-    print("Usage: python zeolite_xyz_to_lmps.py inp_file")
+    print("Usage: python zeolite_xyz_to_lmps.py inp_file out_file")
+    exit(1)
 
 with open(inp_file) as f:
     lines=f.readlines()
@@ -19,12 +31,13 @@ rx=[]
 ry=[]
 rz=[]
 
-xlo=0
-xhi=0
-ylo=0
-yhi=0
-zlo=0
-zhi=0
+xlo=enterbounds('xlo')
+xhi=enterbounds('xhi')
+ylo=enterbounds('ylo')
+yhi=enterbounds('yhi')
+zlo=enterbounds('zlo')
+zhi=enterbounds('zhi')
+
 print("There are %s atoms" % natms)
 for i in range(2,int(natms)+2):
     type.append(lines[i].rstrip().split()[0])
