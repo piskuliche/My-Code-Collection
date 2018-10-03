@@ -14,5 +14,6 @@ ln -s $homepath/curve_fit/calculate_fit.py bin/
 ln -s $homepath/system_builds/water/build_water.py bin/
 ln -s $homepath/system_builds/acn/build_acn.py bin/
 ln -s $homepath/system_builds/acn/cxl/build_acn_cxl.py bin/
+ln -s $homepath/system_builds/zeolites/zeolite_xyz_to_lmps.py bin/c
 
 chmod 777 bin/*
