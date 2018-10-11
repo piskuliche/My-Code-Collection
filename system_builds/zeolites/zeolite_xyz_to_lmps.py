@@ -47,6 +47,7 @@ for i in range(2,int(natms)+2):
 
 out = open(out_file,'w')
 natypes=len(np.unique(type))
+print np.unique(type)
 out.write('Lammps Description\n\n')
 
 out.write('%s atoms\n' % natms)
@@ -77,6 +78,9 @@ for elem in np.unique(type):
     elif elem =='O':
         q.append(-1.025)
         out.write('%s 15.999\n' % count)
+    elif elem =='C4':
+        q.append(0.0)
+        out.write('%s 16.043\n' % count)
 out.write('\n')
 
 out.write('Atoms\n\n')
