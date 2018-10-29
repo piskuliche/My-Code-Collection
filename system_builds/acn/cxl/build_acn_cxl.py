@@ -8,7 +8,7 @@ This is a python program which creates a box of acn for use in lammps simulation
 """
 
 if len(sys.argv) != 4:
-    print("Usage python build_acn.py numacns type")
+    print("Usage python build_acn.py numacns numco2s type")
     exit()
 
 numacns=int(sys.argv[1])
@@ -130,10 +130,10 @@ def tolammps(nacn,nco2):
     for i in range(nacn):
         aindex=i+1
         atype=1
-        oindex =i*3+1
-        h1index=i*3+2
-        h2index=i*3+3
-        dat.write("%s %s %s %s %s\n" % (aindex, atype, h1index, oindex, h2index))
+        CH3index =i*3+1
+        Cindex=i*3+2
+        Nindex=i*3+3
+        dat.write("%s %s %s %s %s\n" % (aindex, atype, CH3index, Cindex, Nindex))
     for i in range(nco2):
         aindex=nacn+i+1
         atype=2
