@@ -26,15 +26,15 @@ if option == 1:
             elif "zlo" in line:
                 lines.append(line.split()[:2])
                 break
-if option === 2:
+    # Generates box.info file with dimensions
+    boxfile = open("box.info", 'w')
+    for line in lines:
+        boxfile.write("%s %s\n" % (line[0],line[1]))
+    boxfile.close()
+if option == 2:
     print("Write out the box.info file yourself! Don't be lazy!")
     print("Okay... yeah I am being lazy right now as I write this")
 
-# Generates box.info file with dimensions
-boxfile = open("box.info", 'w')
-for line in lines:
-    boxfile.write("%s %s\n" % (line[0],line[1]))
-boxfile.close()
 
 # Calls for user response to create molecule input file for msd code
 print("Now generating a molecule input file")
