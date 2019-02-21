@@ -48,7 +48,7 @@ pcov_bl = []
 
 fittedout = open('fitmsd_'+molname+'.log','w')
 for i in time:
-    fittedout.write("%s %s" % (time, linear(popt[0], popt[1], i)))
+    fittedout.write("%s %s\n" % (time, linear(popt[0], popt[1], i)))
 fittedout.close()
 
 
