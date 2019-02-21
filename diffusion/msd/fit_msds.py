@@ -48,7 +48,7 @@ pcov_bl = []
 
 fittedout = open('fitmsd_'+molname+'.log','w')
 for i in time:
-    fittedout.write("%s %s\n" % (time, linear(popt[0], popt[1], i)))
+    fittedout.write("%s %s\n" % (i, linear(i, popt[0], popt[1])))
 fittedout.close()
 
 
@@ -59,5 +59,5 @@ d_tot = popt[0]/6*10**(-4)
 d_std = np.std(popt_bl)*t_val/6*10**(-4)
 
 output = open('msd_'+molname+'.log', 'a')
-output.write("%s %s %s" % (prepend, d_tot, d_std))
+output.write("%s %s %s\n" % (prepend, d_tot, d_std))
 output.close()
