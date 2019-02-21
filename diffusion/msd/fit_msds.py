@@ -45,13 +45,19 @@ if endskip < 0:
 popt, pcov = curve_fit(linear, time[startskip:endskip], msd[startskip:endskip])
 popt_bl = []
 pcov_bl = []
+
+fittedout = open('fitmsd_'+molname+'.log','w')
+for i in time:
+    fittedout.write("%s %s" % (time, linear(popt[0], popt[1], i)))
+fittedout.close()
+
+
 for i in range(nblocks):
     tmp_popt, tmp_pcov = curve_fit(linear, time[startskip:endskip], blockmsd[i][startskip:endskip])
     popt_bl.append(tmp_popt[0])
 d_tot = popt[0]/6*10**(-4)
 d_std = np.std(popt_bl)*t_val/6*10**(-4)
 
-output = open('msd_'+molname+'.log', 'w')
+output = open('msd_'+molname+'.log', 'a')
 output.write("%s %s %s" % (prepend, d_tot, d_std))
-
-
+output.close()
