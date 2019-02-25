@@ -1,5 +1,9 @@
 This is the diffusion calculation code. The fortran code can be run by the command
 
+Compile with 
+ module load compiler/pgi/18
+ pgf90 -O3 main.f90 -mcmodel=medium -o calc_msd.exe
+
 calc_msd.exe < diff.inp
 
 where diff.inp has the following form:
