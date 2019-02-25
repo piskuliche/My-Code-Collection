@@ -10,8 +10,8 @@ import scipy.stats as stats
 from scipy.optimize import curve_fit
 
 # Read in parameters
-if len(sys.argv) != 7:
-    print("Usage: fit_msds.py file nblocks molname startskip endskip prepend") 
+if len(sys.argv) != 8:
+    print("Usage: fit_msds.py file nblocks molname startskip endskip prepend startindex") 
     exit(0)
 filename = str(sys.argv[1])
 nblocks  = int(sys.argv[2])
@@ -19,6 +19,7 @@ molname  = str(sys.argv[3])
 startskip = int(sys.argv[4])
 endskip   = int(sys.argv[5])
 prepend   = str(sys.argv[6])
+startindex = int(sys.argv[7])
 t_val=stats.t.ppf(0.975,nblocks-1)/np.sqrt(nblocks)
 
 # Define the Linear Fitting Function
@@ -26,10 +27,10 @@ def linear(x, m, b):
     return m*x + b
 
 # Read in the data
-time, msd = np.genfromtxt(filename, usecols = (0,1), unpack=True)
+time, msd = np.genfromtxt(filename, usecols = (0,startindex+1), unpack=True)
 blockmsd = []
 for i in range(nblocks):
-    j = 2 + i
+    j = 2+startindex + i
     blockmsd.append(np.genfromtxt(filename, usecols = j, unpack=True))
 
 # Calculate block uncertainty, output to a file.
@@ -60,4 +61,5 @@ d_std = np.std(popt_bl)*t_val/6*10**(-4)
 
 output = open('msd_'+molname+'.log', 'a')
 output.write("%s %s %s\n" % (prepend, d_tot, d_std))
+print("Diffusion coefficient is %s plus/minus %s" % (d_tot, d_std))
 output.close()

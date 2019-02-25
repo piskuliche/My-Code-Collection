@@ -290,7 +290,7 @@ int main(int argc, char* argv[])
                 // Divide by number of mols
                 dr2    /= (double) num_mols;
                 // Increment MSD(t)
-                MSD[t-to]  += dr2o+dr2;
+                MSD[t-to]  += dr2;
                 // Divide C1(t) and C2(t) by number of mols
                 if(atoms_per_mol > 1)
                 {
@@ -305,11 +305,12 @@ int main(int argc, char* argv[])
         // This piece of code divides the total by the number of time origins per block -> average
         for(int i = 0; i < n_corr; i++)
         {
-            MSD[i] /= ((sep_bl/(double) nevery));
+            //MSD[i] /= ((sep_bl/(double) nevery));
+            MSD[i] /= (double) count;
             if(atoms_per_mol > 1)
             {
-                C1[i]  /= (sep_bl/(double) nevery);
-                C2[i]  /= (sep_bl/(double) nevery);
+                C1[i]  /=  (double) count;
+                C2[i]  /=  (double) count;
             }
         }
         // Stores the MSD, C1, C2 vectors in an array.
