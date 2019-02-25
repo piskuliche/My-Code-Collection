@@ -61,5 +61,5 @@ d_std = np.std(popt_bl)*t_val/6*10**(-4)
 
 output = open('msd_'+molname+'.log', 'a')
 output.write("%s %s %s\n" % (prepend, d_tot, d_std))
-print("Diffusion coefficient is %s plus/minus %s" % (d_tot, d_std))
+print("Diffusion coefficient and error are %s %s" % (d_tot, d_std))
 output.close()
