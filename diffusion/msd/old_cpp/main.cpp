@@ -29,8 +29,10 @@ int main(int argc, char* argv[])
     int msdindex = 0, c2index1 = 0, c2index2 = 0;
     double Lx = 0.0, Ly = 0.0, Lz = 0.0;
     double dump_freq = 0.0;
+    double MASS = 0.0;
     vector<double> mass;
     vector<double> X,Y,Z;   // Holds masses
+    vector<double> CX, CY, CZ;
     vector<double> exo, eyo, ezo;
     vector<double> MSD, C1, C2; // Holds Mean Squared Displacement
     vector< vector<double>> bl_MSD,bl_C1, bl_C2;
@@ -47,6 +49,8 @@ int main(int argc, char* argv[])
         printf("Note: for optional arguments you should include all arguments that precede the optional arguments you need.\n I.E. if you need startskip, you must include nevery and n_corr.\n");
         printf("Defaults for Optional Arguments: nevery=20, n_corr = 400, startskip = 0, endskip = 0\n");
         printf("Note: you need not include startskip = 2 for an xyz file - the top two lines are already accounted for\n");
+        printf("Note: For convenient preprocessing, use gen_msd_inps.py\n");
+        printf("Note: For convenient postprocessing, use fit_msds.py\n");
         exit(0);
     }
     for(int counter=1; counter<argc;counter++)
@@ -94,6 +98,7 @@ int main(int argc, char* argv[])
         int m = 0;
         mfile >> m;
         mass.push_back(m);
+        MASS += m;
     }
     mfile.close();
 
@@ -130,6 +135,7 @@ int main(int argc, char* argv[])
     tin.close();
     tin.open(filename);
     double x=0, y=0, z=0;
+    double cx=0, cy=0, cz=0;
     for(int f=0; f<nframes; f++)
     {
         if((f+1) % 1000 == 0) {printf("Reading Frame %d of %d\n", f+1,nframes);}
@@ -144,6 +150,7 @@ int main(int argc, char* argv[])
         }
         for(int m=0; m<num_mols; m++)
         {
+            cx=0, cy=0, cz=0;
             for(int a=0; a<atoms_per_mol; a++)
             {
                 getline(tin,buffer);
@@ -157,7 +164,12 @@ int main(int argc, char* argv[])
                 X.push_back(x);
                 Y.push_back(y);
                 Z.push_back(z);
+                cx += x*mass[a];
+                cy += y*mass[a];
+                cz += z*mass[a];
             }
+            // Center of Mass Coords
+            CX.push_back(cx/MASS), CY.push_back(cy/MASS), CZ.push_back(cz/MASS);
         }
         if(end_skip != 0)
         {
@@ -213,14 +225,32 @@ int main(int argc, char* argv[])
                 // Loop over molecules
                 for(int j=0; j<num_mols; j++)
                 {
-                    // Set indices for the first frame (fo), previous frame(ao) and the current frame(a)
-                    int fo = to*num_mols*atoms_per_mol + j*atoms_per_mol;
-                    int ao = (t-1)*num_mols*atoms_per_mol+j*atoms_per_mol;
-                    int a  = t*num_mols*atoms_per_mol + j*atoms_per_mol;
-                    // Calculates distance r(t)-r(t-1)
-                    dx = X[a]-X[ao];
-                    dy = Y[a]-Y[ao];
-                    dz = Z[a]-Z[ao];
+                    int fo=0, ao=0, a=0;
+                    int c2fo = to*num_mols*atoms_per_mol + j*atoms_per_mol;
+                    int c2ao = (t-1)*num_mols*atoms_per_mol+j*atoms_per_mol;
+                    int c2a  = t*num_mols*atoms_per_mol + j*atoms_per_mol;
+                    if(msdindex == 0)
+                    {
+                        // Set indices for the first frame (fo), previous frame(ao) and the current frame(a)
+                        fo = to*num_mols + j;
+                        ao = (t-1)*num_mols + j;
+                        a  = t*num_mols + j;
+                        // Calculates distance r(t)-r(t-1)
+                        dx = CX[a]-CX[ao];
+                        dy = CY[a]-CY[ao];
+                        dz = CZ[a]-CZ[ao];
+                    }
+                    else
+                    {
+                        // Set indices for the first frame (fo), previous frame(ao) and the current frame(a)
+                        fo = to*num_mols*atoms_per_mol + j*atoms_per_mol + msdindex - 1;
+                        ao = (t-1)*num_mols*atoms_per_mol+j*atoms_per_mol + msdindex - 1;
+                         a  = t*num_mols*atoms_per_mol + j*atoms_per_mol + msdindex - 1;
+                        // Calculates distance r(t)-r(t-1)
+                        dx = X[a]-X[ao];
+                        dy = Y[a]-Y[ao];
+                        dz = Z[a]-Z[ao];
+                    }
                     // Periodic boundary conditions (minimum image distance)
                     pbc_dist(dx,Lx);
                     pbc_dist(dy,Ly);
@@ -231,9 +261,9 @@ int main(int argc, char* argv[])
                     if(atoms_per_mol > 1)
                     {
                         // Calculates bond vector between atoms for the original time
-                        exo[j] = X[fo+c2index1] - X[fo+c2index2];
-                        eyo[j] = Y[fo+c2index1] - Y[fo+c2index2];
-                        ezo[j] = Z[fo+c2index1] - Z[fo+c2index2];
+                        exo[j] = X[c2fo+c2index1] - X[c2fo+c2index2];
+                        eyo[j] = Y[c2fo+c2index1] - Y[c2fo+c2index2];
+                        ezo[j] = Z[c2fo+c2index1] - Z[c2fo+c2index2];
                         // Periodic boundary conditions, minimum image distance for the original vector
                         pbc_dist(exo[j],Lx);
                         pbc_dist(eyo[j],Ly);
@@ -241,9 +271,9 @@ int main(int argc, char* argv[])
                         // Normalizes components of the e(t) vector
                         norm_comp(exo[j], eyo[j], ezo[j]);
                         // Calculates the new bond vector
-                        ex = X[a+c2index1] - X[a+c2index2];
-                        ey = Y[a+c2index1] - Y[a+c2index2];
-                        ez = Z[a+c2index1] - Z[a+c2index2];
+                        ex = X[c2a+c2index1] - X[c2a+c2index2];
+                        ey = Y[c2a+c2index1] - Y[c2a+c2index2];
+                        ez = Z[c2a+c2index1] - Z[c2a+c2index2];
                         // Minimum image distance for the vector
                         pbc_dist(ex,Lx);
                         pbc_dist(ey,Ly);
@@ -260,7 +290,7 @@ int main(int argc, char* argv[])
                 // Divide by number of mols
                 dr2    /= (double) num_mols;
                 // Increment MSD(t)
-                MSD[t-to]  += dr2o+dr2;
+                MSD[t-to]  += dr2;
                 // Divide C1(t) and C2(t) by number of mols
                 if(atoms_per_mol > 1)
                 {
@@ -275,11 +305,12 @@ int main(int argc, char* argv[])
         // This piece of code divides the total by the number of time origins per block -> average
         for(int i = 0; i < n_corr; i++)
         {
-            MSD[i] /= ((sep_bl/(double) nevery));
+            //MSD[i] /= ((sep_bl/(double) nevery));
+            MSD[i] /= (double) count;
             if(atoms_per_mol > 1)
             {
-                C1[i]  /= (sep_bl/(double) nevery);
-                C2[i]  /= (sep_bl/(double) nevery);
+                C1[i]  /=  (double) count;
+                C2[i]  /=  (double) count;
             }
         }
         // Stores the MSD, C1, C2 vectors in an array.
@@ -311,7 +342,7 @@ int main(int argc, char* argv[])
         }
     }
     // Outputs the files to a file
-    ofstream msdout("msd.dat");
+    ofstream msdout("msd_"+molfile);
     for(int i =0; i<n_corr; i++)
     {
         MSD[i] /= nblocks;
