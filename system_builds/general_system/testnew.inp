@@ -1,0 +1,6 @@
+{
+"num_components":3,
+"nspec":[200,200,100],
+"tspec":["BMIM","pf6","R32"],
+"blength":50.0
+}
