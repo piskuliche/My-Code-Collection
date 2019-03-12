@@ -1,6 +1,6 @@
 def define_molec(num_spec, blength):
     # This is the bmim structure in my lab notebook on p. 44
-    bmim_file = "bmim.xyz"
+    bmim_file = "tmp/bmim.xyz"
     bmim = open(bmim_file, 'w')
     bmim.write("25\n")
     bmim.write("bmim\n")
@@ -191,9 +191,9 @@ def define_molec(num_spec, blength):
             "H3-C5-N1-C4":[1,0.5,0,atms["name"].index(imps['name'][4][:2]),atms["name"].index(imps['name'][4][3:5]),atms["name"].index(imps['name'][4][6:8]),atms["name"].index(imps['name'][4][9:])]
             })
     # Write to the packmol file
-    pmolfile = 'IL_system.pmol'
+    pmolfile = 'system.pmol'
     pm = open(pmolfile, 'a')
-    pm.write("structure bmim.xyz\n")
+    pm.write("structure tmp/bmim.xyz\n")
     pm.write("  number %s\n" % num_spec)
     pm.write("  inside box 2. 2. 2. %s %s %s\n" % (blength, blength, blength))
     pm.write("end structure\n")

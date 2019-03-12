@@ -1,5 +1,5 @@
 def define_molec(num_spec, blength):
-    R32_file = "R32.xyz"
+    R32_file = "tmp/r32.xyz"
     R32 = open(R32_file, 'w')
     R32.write("5\n")
     R32.write("R32\n")
@@ -45,9 +45,9 @@ def define_molec(num_spec, blength):
             }
 
     # Open Packmol File
-    pmolfile = 'IL_system.pmol'
+    pmolfile = 'system.pmol'
     pm = open(pmolfile, 'a')
-    pm.write("structure R32.xyz\n")
+    pm.write("structure tmp/r32.xyz\n")
     pm.write("  number %s\n" % num_spec)
     pm.write("  inside box 2. 2. 2. %s %s %s\n" % (blength, blength, blength))
     pm.write("end structure\n")

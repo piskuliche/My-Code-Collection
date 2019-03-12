@@ -35,7 +35,7 @@ print("box length = %s" % blength)
 # Define functions
 def gen_packmol():
     L = blength-2.0
-    pmolfile = 'IL_system.pmol'
+    pmolfile = 'system.pmol'
     pm = open(pmolfile, 'w')
     pm.write("tolerance 2.0\n")
     pm.write("filetype xyz\n")
@@ -61,7 +61,7 @@ def gen_packmol():
     return NCHAR, NTYPS, ATMS, BNDS, ANGS, DIHS, IMPS
 
 def write_header():
-    datafile = "data.IL"
+    datafile = "data.lmps"
     dat      = open(datafile, 'w')
 
     dat.write("Data file with components " )
@@ -134,7 +134,7 @@ def write_atoms():
     return
 
 def write_bonds():
-    datafile = "data.IL"
+    datafile = "data.lmps"
     dat      = open(datafile, 'a')
     dat.write("Bonds\n")
     dat.write("\n")
@@ -152,7 +152,7 @@ def write_bonds():
     dat.close()
 
 def write_angles():
-    datafile = "data.IL"
+    datafile = "data.lmps"
     dat      = open(datafile, 'a')
     dat.write("Angles\n")
     dat.write("\n")
@@ -169,7 +169,7 @@ def write_angles():
     dat.close()
 
 def write_dihedrals():
-    datafile = "data.IL"
+    datafile = "data.lmps"
     dat      = open(datafile, 'a')
     dat.write("Dihedrals\n")
     dat.write("\n")
@@ -186,7 +186,7 @@ def write_dihedrals():
     dat.close()
 
 def write_impropers():
-    datafile = "data.IL"
+    datafile = "data.lmps"
     dat      = open(datafile, 'a')
     dat.write("Impropers\n")
     dat.write("\n")
@@ -221,7 +221,7 @@ def write_lammps_coeffs():
 
 
 NCHAR, NTYPS, ATMS, BNDS, ANGS, DIHS, IMPS = gen_packmol()
-subprocess.call(["/panfs/pfs.local/work/laird/e924p726/thompsonwork/Programs/Executables/packmol < IL_system.pmol"], shell=True)
+subprocess.call(["/panfs/pfs.local/work/laird/e924p726/thompsonwork/Programs/Executables/packmol < system.pmol"], shell=True)
 x,y,z = np.genfromtxt('system.xyz', usecols=(1,2,3), unpack=True, skip_header=2)
 write_header()
 write_atoms()

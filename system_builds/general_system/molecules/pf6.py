@@ -1,6 +1,6 @@
 def define_molec(num_spec, blength):
     # This is the PF6 structure in my lab notebook on p.44
-    HFP_file = "PF6.xyz"
+    HFP_file = "tmp/pf6.xyz"
     HFP = open(HFP_file, 'w')
     HFP.write("7\n")
     HFP.write("PF6\n")
@@ -55,9 +55,9 @@ def define_molec(num_spec, blength):
             'name':[]
             }
     # Write to the packmol file
-    pmolfile = 'IL_system.pmol'
+    pmolfile = 'system.pmol'
     pm = open(pmolfile, 'a')
-    pm.write("structure PF6.xyz\n")
+    pm.write("structure tmp/pf6.xyz\n")
     pm.write("  number %s\n" % num_spec)
     pm.write("  inside box 2. 2. 2. %s %s %s\n" % (blength, blength, blength))
     pm.write("end structure\n")

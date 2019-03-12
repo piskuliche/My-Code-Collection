@@ -1,7 +1,8 @@
 #!/bin/bash
 
 rm *.pmol
-rm *.xyz
+rm tmp/*.xyz
 rm *.pyc
+rm molecules/*.pyc
 rm *.lmps
 rm *.coeffs

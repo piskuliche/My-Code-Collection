@@ -1,5 +1,5 @@
 def define_molec(num_spec, blength):
-    mol_file = ".xyz"
+    mol_file = "tmp/.xyz"
         mol = open(mol_file, 'w')
         # XYZ Header
         mol.write("\n")
@@ -32,9 +32,9 @@ def define_molec(num_spec, blength):
                 }
 
         # Open Packmol File
-        pmolfile = 'IL_system.pmol'
+        pmolfile = 'system.pmol'
         pm = open(pmolfile, 'a')
-        pm.write("structure .xyz\n")
+        pm.write("structure tmp/.xyz\n")
         pm.write("  number %s\n" % num_spec)
         pm.write("  inside box 2. 2. 2. %s %s %s\n" % (blength, blength, blength))
         pm.write("end structure\n")
