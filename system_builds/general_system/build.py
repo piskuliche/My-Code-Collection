@@ -10,8 +10,8 @@ This is a python program which can build a box of generally defined molecules.
 These molecules cane be included in molecular_species.py
 """
 
-if not os.path.exists('/tmp'):
-        os.makedirs('/tmp')
+if not os.path.exists('./tmp'):
+        os.makedirs('./tmp')
 
 # Read the NML file
 try:
