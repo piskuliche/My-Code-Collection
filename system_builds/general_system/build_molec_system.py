@@ -6,7 +6,8 @@ import os, json
 import molecular_species as molspec
 
 """
-This is a python program which can build a box of ionic liquids for use in lammps simulations.
+This is a python program which can build a box of generally defined molecules.
+These molecules cane be included in molecular_species.py
 """
 
 # Read the NML file
