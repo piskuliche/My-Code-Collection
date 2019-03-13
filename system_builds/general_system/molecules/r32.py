@@ -44,16 +44,6 @@ def define_molec(num_spec, blength):
             'name':[]
             }
 
-    # Open Packmol File
-    pmolfile = 'system.pmol'
-    pm = open(pmolfile, 'a')
-    pm.write("structure tmp/r32.xyz\n")
-    pm.write("  number %s\n" % num_spec)
-    pm.write("  inside box 2. 2. 2. %s %s %s\n" % (blength, blength, blength))
-    pm.write("end structure\n")
-    pm.write("\n")
-    pm.close() 
-
     # Write characteristics to file
     nchar = [5,4,6,0,0]
     ntyps = [3,2,3,0,0]

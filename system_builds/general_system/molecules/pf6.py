@@ -54,14 +54,6 @@ def define_molec(num_spec, blength):
     imps = {
             'name':[]
             }
-    # Write to the packmol file
-    pmolfile = 'system.pmol'
-    pm = open(pmolfile, 'a')
-    pm.write("structure tmp/pf6.xyz\n")
-    pm.write("  number %s\n" % num_spec)
-    pm.write("  inside box 2. 2. 2. %s %s %s\n" % (blength, blength, blength))
-    pm.write("end structure\n")
-    pm.write("\n")
     # Stores the number of characteristics
     nchar = [7,6,12,0,0]
     ntyps =[2,1,1,0,0]

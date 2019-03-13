@@ -206,25 +206,96 @@ def write_impropers():
     dat.write("\n")
     dat.close()
 
-def write_lammps_coeffs():
-    lmpsfile = 'lmps.coeffs'
+def write_lammps_paircoeffs():
+    lmpsfile = 'lmps.paircoeffs'
     lmps = open(lmpsfile, 'w')
+    if 'tip4p' not in typ_spec:
+        lmps.write("pair_style lj/cut/coul/long 12.5 12.5\n")
+    else:
+        lmps.write("#!!!! NEED TO USE A HYBRID PAIRSTYLE -> need to edit pair_coeff commands accordingly\n")
+        lmps.write("pair_style hybrid lj/cut/tip4p/long 12.5 12.5 lj/cut/coul/long 12.5 12.5\n")
+    start = 0
     for i in range(num_components):
         lmps.write("# Pair Coeffs Species %s\n" % i)
-        a, indices = np.unique(ATMS[0]["atype"], return_index = True)
-        count, start = 1, 0
+        a, indices = np.unique(ATMS[i]["atype"], return_index = True)
         for j in indices:
             lmps.write("pair_coeff %s %s %9.3f %9.3f\n" % (ATMS[i]["atype"][j]+start,ATMS[i]["atype"][j]+start, ATMS[i]["kjeps"][j]/4.184, ATMS[i]["rmin"][j]/(2**(1/6.))))
-            count += 1
-        start = count - 1
+        start += max(ATMS[i]["atype"])
     lmps.close()
+    return
+
+def write_lammps_bondcoeffs():
+    lmpsfile = 'lmps.bondcoeffs'
+    lmps = open(lmpsfile, 'w')
+    lmps.write("bond_style harmonic\n")
+    start = 0
+    usedtyps=[]
+    for i in range(num_components):
+        lmps.write("# Bond Coeffs Species %s\n" % i)
+        for bond in BNDS[i]['name']:
+            if BNDS[i][bond][0]+start not in usedtyps:
+                lmps.write("bond_coeff %s %9.3f %9.3f\n" % (BNDS[i][bond][0]+start, BNDS[i][bond][1], BNDS[i][bond][2]))
+                usedtyps.append(BNDS[i][bond][0]+start)
+        start = max(usedtyps)
+    lmps.close()
+    return
+
+def write_lammps_anglecoeffs():
+    lmpsfile = 'lmps.anglecoeffs'
+    lmps = open(lmpsfile, 'w')
+    lmps.write("angle_style harmonic\n")
+    start = 0
+    usedtyps=[]
+    for i in range(num_components):
+        lmps.write("# Angle Coeffs Species %s\n" % i)
+        for angle in ANGS[i]['name']:
+            if ANGS[i][angle][0]+start not in usedtyps:
+                lmps.write("angle_coeff %s %9.3f %9.3f\n" % (ANGS[i][angle][0]+start, ANGS[i][angle][1], ANGS[i][angle][2]))
+                usedtyps.append(ANGS[i][angle][0]+start)
+        start = max(usedtyps)
+    lmps.close()
+    return
+
+def write_lammps_dihedralcoeffs():
+    lmpsfile = 'lmps.dihedralcoeffs'
+    lmps = open(lmpsfile, 'w')
+    lmps.write("dihedral_style charmm\n")
+    start = 0
+    usedtyps=[]
+    for i in range(num_components):
+        lmps.write("# Dihedral Coeffs Species %s\n" % i)
+        for dihedral in DIHS[i]['name']:
+            if DIHS[i][dihedral][0]+start not in usedtyps:
+                lmps.write("dihedral_coeff %s %9.3f %s %9.3f\n" % (DIHS[i][dihedral][0]+start, DIHS[i][dihedral][1], DIHS[i][dihedral][2], DIHS[i][dihedral][3]))
+                usedtyps.append(DIHS[i][dihedral][0]+start)
+        start = max(usedtyps)
+    lmps.close()
+    return
+
+def write_lammps_impropercoeffs():
+    lmpsfile = 'lmps.impropercoeffs'
+    lmps = open(lmpsfile, 'w')
+    lmps.write("improper_style harmonic\n")
+    start = 0
+    usedtyps=[]
+    for i in range(num_components):
+        lmps.write("# Improper Coeffs Species %s\n" % i)
+        for improper in IMPS[i]['name']:
+            if IMPS[i][improper][0]+start not in usedtyps:
+                lmps.write("improper_coeff %s %9.3f %9.3f\n" % (IMPS[i][improper][0]+start, IMPS[i][improper][1], IMPS[i][improper][2]))
+                usedtyps.append(IMPS[i][improper][0]+start)
+        start = max(usedtyps)
+    lmps.close()
+    return
+
+
 
 
 
 
 
 NCHAR, NTYPS, ATMS, BNDS, ANGS, DIHS, IMPS = gen_packmol()
-subprocess.call(["/panfs/pfs.local/work/laird/e924p726/thompsonwork/Programs/Executables/packmol < system.pmol"], shell=True)
+#subprocess.call(["/panfs/pfs.local/work/laird/e924p726/thompsonwork/Programs/Executables/packmol < system.pmol"], shell=True)
 x,y,z = np.genfromtxt('system.xyz', usecols=(1,2,3), unpack=True, skip_header=2)
 write_header()
 write_atoms()
@@ -232,4 +303,8 @@ write_bonds()
 write_angles()
 write_dihedrals()
 write_impropers()
-#write_lammps_coeffs()
+write_lammps_paircoeffs()
+write_lammps_bondcoeffs()
+write_lammps_anglecoeffs()
+write_lammps_dihedralcoeffs()
+write_lammps_impropercoeffs()

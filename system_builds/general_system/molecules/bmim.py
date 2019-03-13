@@ -76,7 +76,7 @@ def define_molec(num_spec, blength):
             'name':["C8-C7-N1","C5-N1-C2","C4-N3-C2","H4-C6-N3","H5-C6-N3","H6-C6-N3","N1-C7-H8","N1-C7-H7","N1-C2-H1","N3-C2-H1",
                     "H2-C4-C5","H3-C5-C4","N3-C4-H2","H4-C6-H5","H4-C6-H6","H5-C6-H6","H7-C7-H8","H7-C7-C8","H8-C7-C8","H9-C8-C7",
                     "H10-C8-C7", "C7-C8-C9","C8-C9-C10","H9-C8-H10","H11-C9-H12","C8-C9-H11","C8-C9-H12","C9-C10-H13","C9-C10-H14",
-                    "C9-C10-H15","H13-C10-H14","H13-C10-H15","H14-C10-H15","N1-C2-H1","N3-C2-H1"]
+                    "C9-C10-H15","H13-C10-H14","H13-C10-H15","H14-C10-H15"]
             }
     angs.update({
             "C8-C7-N1":[1,140.0,112.6,atms["name"].index(angs['name'][0][:2]),atms["name"].index(angs['name'][0][3:5]),atms["name"].index(angs['name'][0][6:])],
@@ -87,33 +87,31 @@ def define_molec(num_spec, blength):
             "H6-C6-N3":[3,30.0,109.6,atms["name"].index(angs['name'][5][:2]),atms["name"].index(angs['name'][5][3:5]),atms["name"].index(angs['name'][5][6:])],
             "N1-C7-H8":[4,30.0,106.8,atms["name"].index(angs['name'][6][:2]),atms["name"].index(angs['name'][6][3:5]),atms["name"].index(angs['name'][6][6:])],
             "N1-C7-H7":[4,30.0,106.8,atms["name"].index(angs['name'][7][:2]),atms["name"].index(angs['name'][7][3:5]),atms["name"].index(angs['name'][7][6:])],
-            "N1-C2-H1":[5,130.0,107.2,atms["name"].index(angs['name'][8][:2]),atms["name"].index(angs['name'][8][3:5]),atms["name"].index(angs['name'][8][6:])],
-            "N3-C2-H1":[6,130.0,109.1,atms["name"].index(angs['name'][9][:2]),atms["name"].index(angs['name'][9][3:5]),atms["name"].index(angs['name'][9][6:])],
-            "H2-C4-C5":[7,25.0,130.8,atms["name"].index(angs['name'][10][:2]),atms["name"].index(angs['name'][10][3:5]),atms["name"].index(angs['name'][10][6:])],
-            "H3-C5-C4":[7,25.0,130.8,atms["name"].index(angs['name'][11][:2]),atms["name"].index(angs['name'][11][3:5]),atms["name"].index(angs['name'][11][6:])],
-            "N3-C4-H2":[8,25.0,112.6,atms["name"].index(angs['name'][12][:2]),atms["name"].index(angs['name'][12][3:5]),atms["name"].index(angs['name'][12][6:])],
-            "H4-C6-H5":[9,35.5,109.3,atms["name"].index(angs['name'][13][:2]),atms["name"].index(angs['name'][13][3:5]),atms["name"].index(angs['name'][13][6:])],
-            "H4-C6-H6":[9,35.5,109.3,atms["name"].index(angs['name'][14][:2]),atms["name"].index(angs['name'][14][3:5]),atms["name"].index(angs['name'][14][6:])],
-            "H5-C6-H6":[9,35.5,109.3,atms["name"].index(angs['name'][15][:2]),atms["name"].index(angs['name'][15][3:5]),atms["name"].index(angs['name'][15][6:])],
-            "H7-C7-H8":[10,35.5,107.2,atms["name"].index(angs['name'][16][:2]),atms["name"].index(angs['name'][16][3:5]),atms["name"].index(angs['name'][16][6:])],
-            "H7-C7-C8":[11,35.5,111.5,atms["name"].index(angs['name'][17][:2]),atms["name"].index(angs['name'][17][3:5]),atms["name"].index(angs['name'][17][6:])],
-            "H8-C7-C8":[11,35.5,111.5,atms["name"].index(angs['name'][18][:2]),atms["name"].index(angs['name'][18][3:5]),atms["name"].index(angs['name'][18][6:])],
-            "H9-C8-C7":[12,33.4,109.5,atms["name"].index(angs['name'][19][:2]),atms["name"].index(angs['name'][19][3:5]),atms["name"].index(angs['name'][19][6:])],
-            "H10-C8-C7":[12,33.4,109.5,atms["name"].index(angs['name'][20][:3]),atms["name"].index(angs['name'][20][4:6]),atms["name"].index(angs['name'][20][7:])],
-            "C7-C8-C9":[13,58.4,111.6,atms["name"].index(angs['name'][21][:2]),atms["name"].index(angs['name'][21][3:5]),atms["name"].index(angs['name'][21][6:])],
-            "C8-C9-C10":[13,58.4,111.6,atms["name"].index(angs['name'][22][:2]),atms["name"].index(angs['name'][22][3:5]),atms["name"].index(angs['name'][22][6:])],
-            "H9-C8-H10":[14,34.5,106.4,atms["name"].index(angs['name'][23][:2]),atms["name"].index(angs['name'][23][3:5]),atms["name"].index(angs['name'][23][6:])],
-            "H11-C9-H12":[14,34.5,106.4,atms["name"].index(angs['name'][24][:3]),atms["name"].index(angs['name'][24][4:6]),atms["name"].index(angs['name'][24][7:])],
-            "C8-C9-H11":[15,34.6,109.7,atms["name"].index(angs['name'][25][:2]),atms["name"].index(angs['name'][25][3:5]),atms["name"].index(angs['name'][25][6:])],
-            "C8-C9-H12":[15,34.6,109.7,atms["name"].index(angs['name'][26][:2]),atms["name"].index(angs['name'][26][3:5]),atms["name"].index(angs['name'][26][6:])],
-            "C9-C10-H13":[15,34.6,109.7,atms["name"].index(angs['name'][27][:2]),atms["name"].index(angs['name'][27][3:6]),atms["name"].index(angs['name'][27][7:])],
-            "C9-C10-H14":[15,34.6,109.7,atms["name"].index(angs['name'][28][:2]),atms["name"].index(angs['name'][28][3:6]),atms["name"].index(angs['name'][28][7:])],
-            "C9-C10-H15":[15,34.6,109.7,atms["name"].index(angs['name'][29][:2]),atms["name"].index(angs['name'][29][3:6]),atms["name"].index(angs['name'][29][7:])],
-            "H13-C10-H14":[16,35.5,107.6,atms["name"].index(angs['name'][30][:3]),atms["name"].index(angs['name'][30][4:7]),atms["name"].index(angs['name'][30][8:])],
-            "H13-C10-H15":[16,35.5,107.6,atms["name"].index(angs['name'][31][:3]),atms["name"].index(angs['name'][31][4:7]),atms["name"].index(angs['name'][31][8:])],
-            "H14-C10-H15":[16,35.5,107.6,atms["name"].index(angs['name'][32][:3]),atms["name"].index(angs['name'][32][4:7]),atms["name"].index(angs['name'][32][8:])],
-            "N1-C2-H1":[17,25.0,125.5,atms["name"].index(angs['name'][33][:2]),atms["name"].index(angs['name'][33][3:5]),atms["name"].index(angs['name'][33][6:])],
-            "N3-C2-H1":[17,25.0,125.5,atms["name"].index(angs['name'][34][:2]),atms["name"].index(angs['name'][34][3:5]),atms["name"].index(angs['name'][34][6:])]
+            "N1-C2-H1":[5,25.0,125.5,atms["name"].index(angs['name'][8][:2]),atms["name"].index(angs['name'][8][3:5]),atms["name"].index(angs['name'][8][6:])],
+            "N3-C2-H1":[5,25.0,125.5,atms["name"].index(angs['name'][9][:2]),atms["name"].index(angs['name'][9][3:5]),atms["name"].index(angs['name'][9][6:])],
+            "H2-C4-C5":[6,25.0,130.8,atms["name"].index(angs['name'][10][:2]),atms["name"].index(angs['name'][10][3:5]),atms["name"].index(angs['name'][10][6:])],
+            "H3-C5-C4":[6,25.0,130.8,atms["name"].index(angs['name'][11][:2]),atms["name"].index(angs['name'][11][3:5]),atms["name"].index(angs['name'][11][6:])],
+            "N3-C4-H2":[7,25.0,122.6,atms["name"].index(angs['name'][12][:2]),atms["name"].index(angs['name'][12][3:5]),atms["name"].index(angs['name'][12][6:])],
+            "H4-C6-H5":[8,35.5,109.3,atms["name"].index(angs['name'][13][:2]),atms["name"].index(angs['name'][13][3:5]),atms["name"].index(angs['name'][13][6:])],
+            "H4-C6-H6":[8,35.5,109.3,atms["name"].index(angs['name'][14][:2]),atms["name"].index(angs['name'][14][3:5]),atms["name"].index(angs['name'][14][6:])],
+            "H5-C6-H6":[8,35.5,109.3,atms["name"].index(angs['name'][15][:2]),atms["name"].index(angs['name'][15][3:5]),atms["name"].index(angs['name'][15][6:])],
+            "H7-C7-H8":[9,35.5,107.2,atms["name"].index(angs['name'][16][:2]),atms["name"].index(angs['name'][16][3:5]),atms["name"].index(angs['name'][16][6:])],
+            "H7-C7-C8":[10,35.5,111.5,atms["name"].index(angs['name'][17][:2]),atms["name"].index(angs['name'][17][3:5]),atms["name"].index(angs['name'][17][6:])],
+            "H8-C7-C8":[10,35.5,111.5,atms["name"].index(angs['name'][18][:2]),atms["name"].index(angs['name'][18][3:5]),atms["name"].index(angs['name'][18][6:])],
+            "H9-C8-C7":[11,33.4,109.5,atms["name"].index(angs['name'][19][:2]),atms["name"].index(angs['name'][19][3:5]),atms["name"].index(angs['name'][19][6:])],
+            "H10-C8-C7":[11,33.4,109.5,atms["name"].index(angs['name'][20][:3]),atms["name"].index(angs['name'][20][4:6]),atms["name"].index(angs['name'][20][7:])],
+            "C7-C8-C9":[12,58.4,111.6,atms["name"].index(angs['name'][21][:2]),atms["name"].index(angs['name'][21][3:5]),atms["name"].index(angs['name'][21][6:])],
+            "C8-C9-C10":[12,58.4,111.6,atms["name"].index(angs['name'][22][:2]),atms["name"].index(angs['name'][22][3:5]),atms["name"].index(angs['name'][22][6:])],
+            "H9-C8-H10":[13,34.5,106.4,atms["name"].index(angs['name'][23][:2]),atms["name"].index(angs['name'][23][3:5]),atms["name"].index(angs['name'][23][6:])],
+            "H11-C9-H12":[13,34.5,106.4,atms["name"].index(angs['name'][24][:3]),atms["name"].index(angs['name'][24][4:6]),atms["name"].index(angs['name'][24][7:])],
+            "C8-C9-H11":[14,34.6,109.7,atms["name"].index(angs['name'][25][:2]),atms["name"].index(angs['name'][25][3:5]),atms["name"].index(angs['name'][25][6:])],
+            "C8-C9-H12":[14,34.6,109.7,atms["name"].index(angs['name'][26][:2]),atms["name"].index(angs['name'][26][3:5]),atms["name"].index(angs['name'][26][6:])],
+            "C9-C10-H13":[14,34.6,109.7,atms["name"].index(angs['name'][27][:2]),atms["name"].index(angs['name'][27][3:6]),atms["name"].index(angs['name'][27][7:])],
+            "C9-C10-H14":[14,34.6,109.7,atms["name"].index(angs['name'][28][:2]),atms["name"].index(angs['name'][28][3:6]),atms["name"].index(angs['name'][28][7:])],
+            "C9-C10-H15":[14,34.6,109.7,atms["name"].index(angs['name'][29][:2]),atms["name"].index(angs['name'][29][3:6]),atms["name"].index(angs['name'][29][7:])],
+            "H13-C10-H14":[15,35.5,107.6,atms["name"].index(angs['name'][30][:3]),atms["name"].index(angs['name'][30][4:7]),atms["name"].index(angs['name'][30][8:])],
+            "H13-C10-H15":[15,35.5,107.6,atms["name"].index(angs['name'][31][:3]),atms["name"].index(angs['name'][31][4:7]),atms["name"].index(angs['name'][31][8:])],
+            "H14-C10-H15":[15,35.5,107.6,atms["name"].index(angs['name'][32][:3]),atms["name"].index(angs['name'][32][4:7]),atms["name"].index(angs['name'][32][8:])],
             })
     dihs = {
             'name':["C2-N3-C4-C5","N1-C5-C4-N3","N1-C2-N3-C4", "H1-C2-N1-C5","H1-C2-N3-C4", "H2-C4-C5-H3", "C4-C5-N1-C7", "C5-C4-N3-C6",
@@ -190,16 +188,7 @@ def define_molec(num_spec, blength):
             "H2-C4-C5-N3":[1,0.5,0,atms["name"].index(imps['name'][3][:2]),atms["name"].index(imps['name'][3][3:5]),atms["name"].index(imps['name'][3][6:8]),atms["name"].index(imps['name'][3][9:])],
             "H3-C5-N1-C4":[1,0.5,0,atms["name"].index(imps['name'][4][:2]),atms["name"].index(imps['name'][4][3:5]),atms["name"].index(imps['name'][4][6:8]),atms["name"].index(imps['name'][4][9:])]
             })
-    # Write to the packmol file
-    pmolfile = 'system.pmol'
-    pm = open(pmolfile, 'a')
-    pm.write("structure tmp/bmim.xyz\n")
-    pm.write("  number %s\n" % num_spec)
-    pm.write("  inside box 2. 2. 2. %s %s %s\n" % (blength, blength, blength))
-    pm.write("end structure\n")
-    pm.write("\n")
-    pm.close()
     # Store the number of characteristics
     nchar = [25,25,35,53,5]
-    ntyps = [11,14,17,12,2]
+    ntyps = [11,14,15,12,2]
     return nchar, ntyps, atms, bnds, angs, dihs, imps
