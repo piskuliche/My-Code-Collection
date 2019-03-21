@@ -20,5 +20,6 @@ ln -s $homepath/diffusion/msd/calc_msd.exe bin/
 ln -s $homepath/diffusion/msd/gen_msd_inps.py bin/
 ln -s $homepath/diffusion/msd/fit_msds.py bin/
 ln -s $homepath/system_builds/general_system/build.py bin/
+ln -s $homepath/MD_Widom/conv_connectivity.py bin/
 
 chmod 777 bin/*

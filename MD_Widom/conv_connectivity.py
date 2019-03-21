@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 This is a python module for converting lammps connectivity files
 It reads the coordinateless sample connectivity file that is written by my general build code 
@@ -15,7 +16,9 @@ def read_connectivity(connectfile):
     header_lines = []
     coords_lines = []
     footer_lines = []
+    mass         = []
     startflag, endflag = 0, 0
+    mstart, mend, mcount = 0, 0, 0
     natms = 0
     with open(connectfile) as cnf:
         for line in cnf:
@@ -23,6 +26,10 @@ def read_connectivity(connectfile):
                 startflag = 1
             elif "Types" in line:
                 endflag   = 1
+            elif "Masses" in line:
+                mstart = 1
+            elif "Bonds" in line:
+                mend   = 1
             if startflag == 0:
                 header_lines.append(line)
                 if "atoms" in line:
@@ -32,11 +39,16 @@ def read_connectivity(connectfile):
             if endflag == 1:
                 assert startflag != 0, "Error: Coords flag missing"
                 footer_lines.append(line)
-    return natms, header_lines, coords_lines, footer_lines
+            if mstart == 1 and mend == 0:
+                if mcount >= 2 and mcount < 2 + natms:
+                    mass.append(float(line.rstrip().split()[1]))
+                mcount += 1
+            
+    return natms, mass, header_lines, coords_lines, footer_lines
 
 def read_xyz(connectfile):
     # Reads in coordinates from a file
-    xyz_fname = connectfile.replace(".connect", ".xyz")
+    xyz_fname = connectfile.replace(".connect", ".newxyz")
     x, y, z = np.genfromtxt(xyz_fname, usecols=(0,1,2), unpack=True)
     return x, y, z
 
@@ -58,6 +70,7 @@ def write_connectivity(x, y, z, header_lines, coords_lines, footer_lines, connec
     for line in footer_lines:
         mnf.write(line)
     mnf.close()
+
         
 
     
@@ -70,7 +83,7 @@ if __name__ == '__main__':
     else:
         connectfile = str(sys.argv[1])
         print("Read in connectivity file")
-    natms, header, coords, footer = read_connectivity(connectfile)
+    natms, M,  header, coords, footer = read_connectivity(connectfile)
     print("There are %d atoms" % natms)
     x, y, z = read_xyz(connectfile)
     assert len(x) == natms, "Error: Number of atoms different than number of coordinates"
