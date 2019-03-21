@@ -1,3 +1,4 @@
+import numpy as np
 def define_molec(num_spec, blength):
     # This is the PF6 structure in my lab notebook on p.44
     HFP_file = "tmp/pf6.xyz"
@@ -13,13 +14,19 @@ def define_molec(num_spec, blength):
     HFP.write("F     0.000   0.000  -1.646\n")
     HFP.close()
     atms = {
+            #        0    1    2    3    4    5    6
             'name':["P1","F1","F2","F3","F4","F5","F6"],
             'atype':[1,2,2,2,2,2,2],
             'q':[1.458, -0.421, -0.426, -0.368,-0.368, -0.364, -0.414],
-            'kjeps':[2.448, 0.377, 0.377, 0.377, 0.377, 0.377, 0.377],
+            'eps':[2.448, 0.377, 0.377, 0.377, 0.377, 0.377, 0.377],
             'rmin':[4.30, 3.40, 3.40, 3.40, 3.40, 3.40, 3.40],
-            'mass':[30.974,  18.997,18.997,18.997,18.997,18.997,18.997]
+            'sig':[],
+            'mass':[30.974,  18.997,18.997,18.997,18.997,18.997,18.997],
+            'group':[1,1,1,1,1,1,1],
+            'typgrp':[1,1,1,1,1,1,1],
+            'cf':["1 0", "6 1 2 3 4 5 6"]
             }
+    print("net charge is %s" % np.sum(atms['q']))
     bnds = {
             'name':["P1-F1", "P1-F2", "P1-F3","P1-F4","P1-F5","P1-F6"]
             }

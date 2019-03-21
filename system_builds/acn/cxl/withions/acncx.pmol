@@ -1,0 +1,23 @@
+tolerance 2.0
+filetype xyz
+output system.xyz
+
+structure acn.xyz
+  number 300
+  inside box 2. 2. 2. 19.3310225234 19.3310225234 19.3310225234
+end structure
+
+structure co2.xyz
+  number 30
+  inside box 2. 2. 2. 19.3310225234 19.3310225234 19.3310225234
+end structure
+
+structure clo4.xyz
+  number 10
+  inside box 2. 2. 2. 19.3310225234 19.3310225234 19.3310225234
+end structure
+
+structure li.xyz
+  number 10
+  inside box 2. 2. 2. 19.3310225234 19.3310225234 19.3310225234
+end structure

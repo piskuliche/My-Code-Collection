@@ -1,0 +1,1 @@
+/home/e924p726/My-Code-Collection//diffusion/msd/gen_msd_inps.py

@@ -1,0 +1,8 @@
+tolerance 2.0
+filetype xyz
+output system.xyz
+
+structure water.xyz
+  number 5
+  inside box 2. 2. 2. 3.27833595989 3.27833595989 3.27833595989
+end structure

@@ -2,7 +2,7 @@
 
 homepath=/home/e924p726/My-Code-Collection/
 
-rm -ri bin/
+rm -r bin/
 mkdir bin/
 
 
@@ -15,5 +15,10 @@ ln -s $homepath/system_builds/water/build_water.py bin/
 ln -s $homepath/system_builds/acn/build_acn.py bin/
 ln -s $homepath/system_builds/acn/cxl/build_acn_cxl.py bin/
 ln -s $homepath/system_builds/zeolites/zeolite_xyz_to_lmps.py bin/
+ln -s $homepath/system_builds/acn/cxl/withions/build_acn_cxl_ion.py bin/
+ln -s $homepath/diffusion/msd/calc_msd.exe bin/
+ln -s $homepath/diffusion/msd/gen_msd_inps.py bin/
+ln -s $homepath/diffusion/msd/fit_msds.py bin/
+ln -s $homepath/system_builds/general_system/build.py bin/
 
 chmod 777 bin/*
