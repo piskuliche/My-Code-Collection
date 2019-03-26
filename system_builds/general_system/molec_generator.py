@@ -106,12 +106,20 @@ def calc_ntypes(types, bonds, angles, dihedrals, impropers):
     ntyps.append(np.max(np.transpose(types)[1]))
     if len(bonds) > 0:
         ntyps.append(np.max(np.transpose(bonds)[1]))
+    else:
+        ntyps.append(0)
     if len(angles) > 0:
         ntyps.append(np.max(np.transpose(angles)[1]))
+    else:
+        ntyps.append(0)
     if len(dihedrals) > 0:
         ntyps.append(np.max(np.transpose(dihedrals)[1]))
+    else:
+        ntyps.append(0)
     if len(impropers) > 0:
         ntyps.append(np.max(np.transpose(impropers)[1]))
+    else:
+        ntyps.append(0)
     return ntyps
 
 def write_atm_line(secname, array,nchar):
@@ -132,17 +140,76 @@ def read_names(molname):
             names.append(str(line.split()[1]))
     return names
 
-def read_paircoeffs():
+def read_paircoeffs(types,nchar):
+    coeffs = []
     pcoeffs = []
     with open('lmps.paircoeffs') as lmps:
         for line in lmps:
-            pcoeffs.append(int(line.split()[1]), int(line.split()[2]), float(line.split(3)), float(line.split(4)))
+            coeffs.append([int(line.split()[1]), int(line.split()[2]), float(line.split()[3]), float(line.split()[4])])
+    typmax = np.min(np.transpose(types)[1])
+    for i in range(nchar[0]):
+        pcoeffs.append(coeffs[types[i][1]- typmax])
     return pcoeffs
 
+def read_bondcoeffs(bonds, nchar):
+    coeffs = []
+    bcoeffs =[]
+    with open('lmps.bondcoeffs') as lmps:
+        for line in lmps:
+            coeffs.append([int(line.split()[1]), float(line.split()[2]), float(line.split()[3])])
+    typmax = int(np.min(np.transpose(coeffs)[0]))
+    for i in range(nchar[1]):
+        bcoeffs.append(coeffs[bonds[i][1]-typmax])
+    return bcoeffs
+
+def read_anglecoeffs(angles, nchar):
+    coeffs = []
+    acoeffs =[]
+    with open('lmps.anglecoeffs') as lmps:
+        for line in lmps:
+            coeffs.append([int(line.split()[1]), float(line.split()[2]), float(line.split()[3])])
+    typmax = int(np.min(np.transpose(coeffs)[0]))
+    for i in range(nchar[2]):
+        acoeffs.append(coeffs[angles[i][1]-typmax])
+    return acoeffs
+
+def read_dihedralcoeffs(dihedrals, nchar):
+    coeffs = []
+    dcoeffs =[]
+    with open('lmps.dihedralcoeffs') as lmps:
+        for line in lmps:
+            coeffs.append([int(line.split()[1]), float(line.split()[2]), float(line.split()[3]),float(line.split()[4])])
+    typmax = int(np.min(np.transpose(coeffs)[0]))
+    for i in range(nchar[3]):
+        dcoeffs.append(coeffs[dihedrals[i][1]-typmax])
+    return dcoeffs
+
+def read_impropercoeffs(impropers, nchar):
+    coeffs = []
+    icoeffs =[]
+    with open('lmps.impropercoeffs') as lmps:
+        for line in lmps:
+            coeffs.append([int(line.split()[1]), float(line.split()[2]), float(line.split()[3]),float(line.split()[4])])
+    typmax = int(np.min(np.transpose(coeffs)[0]))
+    for i in range(nchar[3]):
+        icoeffs.append(coeffs[impropers[i][1]-typmax])
+    return icoeffs
+
 def write_molec_py(infile,outfile,molname):
+    print("Begginning write to %s" % outfile)
     nchar, coords, types, charges, masses, bonds, angles, dihedrals, impropers = read_connect_file(infile)
     ntyps = calc_ntypes(types, bonds, angles, dihedrals, impropers)
     names = read_names(molname)
+    # Coeffs
+    pcoeffs = read_paircoeffs(types,nchar)
+    bcoeffs = read_bondcoeffs(bonds, nchar)
+    if nchar[2] != 0:
+        acoeffs = read_anglecoeffs(angles, nchar)
+    if nchar[3] != 0:
+        dcoeffs = read_dihedralcoeffs(dihedrals, nchar)
+    if nchar[4] != 0:
+        Icoeffs = read_impropercoeffs(impropers, nchar)
+
     zeros = np.zeros(nchar[0])
 
     py = open(outfile, 'w')
@@ -167,18 +234,130 @@ def write_molec_py(infile,outfile,molname):
     py.write('%s' % write_atm_line('name', names,nchar))
     py.write('%s' % write_atm_line('types', np.transpose(types)[1]-np.min(np.transpose(types)[1])+1,nchar))
     py.write('%s' % write_atm_line('q', np.transpose(charges)[1],nchar))
-    py.write('%s' % write_atm_line('eps', names,nchar))
-    py.write('%s' % write_atm_line('rmin', names,nchar))
-    py.write('%s' % write_atm_line('sig', names,nchar))
+    py.write('%s' % write_atm_line('eps', np.transpose(pcoeffs)[2],nchar))
+    py.write("        'rmin':")
+    py.write('[],\n')
+    py.write('%s' % write_atm_line('sig', np.transpose(pcoeffs)[3],nchar))
     py.write('%s' % write_atm_line('mass', np.transpose(masses)[1],nchar))
-    py.write('%s' % write_atm_line('group', zeros,nchar))
-    py.write('%s' % write_atm_line('typgrp', zeros,nchar))
+    py.write('%s' % write_atm_line('group', zeros.astype(int),nchar))
+    py.write('%s' % write_atm_line('typgrp', zeros.astype(int),nchar))
     py.write("        'cf':")
     py.write('["2 0 0"]\n')
     py.write('    }\n')
+    # Write Bonds Section
+    py.write('    # Bonding Parameters\n')
+    py.write('    bnds = {\n')
+    py.write("        'name':[")
+    count = 0
+    for bond in bonds:
+        if count == 0:
+            py.write('"%s-%s"' % (names[bond[2]-1],names[bond[3]-1]))
+        else:
+            py.write(',"%s-%s"' % (names[bond[2]-1],names[bond[3]-1]))
+        count += 1
+    py.write(']\n')
+    py.write('    }\n')
+    py.write('    bnds.update({\n')
+    py.write('        # general format bond: type, kb, ro, atm1, tm2\n')
+    py.write('        # Units kb:\n')
+    py.write('        # Units r:\n')
+    count = 0
+    typmax = np.min(np.transpose(bcoeffs)[0])
+    for bond in bonds:
+       count += 1
+       i = count-1
+       py.write('        #%s-%s\n' % (names[bond[2]-1],names[bond[3]-1]))
+       if count != len(bonds):
+           py.write('       "%s-%s":[%d, %.5f, %.5f, %d, %d],\n'% (names[bond[2]-1],names[bond[3]-1],bcoeffs[i][0]-typmax+1, bcoeffs[i][1], bcoeffs[i][2],bond[2], bond[3]))
+       else:
+           py.write('       "%s-%s":[%d, %.5f, %.5f, %d, %d]\n'% (names[bond[2]-1],names[bond[3]-1],bcoeffs[i][0]-typmax+1, bcoeffs[i][1], bcoeffs[i][2],bond[2], bond[3]))
+    py.write('    }\n')
+    # Write Angles Section
+    py.write('    # Angle Parameters\n')
+    py.write('    angs = {\n')
+    py.write("        'name':[")
+    count = 0
+    for angle in angles:
+        if count == 0:
+            py.write('"%s-%s-%s"' % (names[angle[2]-1],names[angle[3]-1],names[angle[4]-1]))
+        else:
+            py.write(',"%s-%s-%s"' % (names[angle[2]-1],names[angle[3]-1],names[angle[4]-1]))
+        count += 1
+    py.write(']\n')
+    py.write('    }\n')
+    if nchar[2] > 0:
+        py.write('    angs.update({\n')
+        count = 0
+        typmax = np.min(np.transpose(acoeffs)[0])
+        for angle in angles:
+           count += 1
+           i = count-1
+           py.write('        #%s-%s-%s\n' % (names[angle[2]-1],names[angle[3]-1],names[angle[4]-1]))
+           if count != len(angles):
+               py.write('       "%s-%s-%s":[%d, %.5f, %.5f, %d, %d, %d],\n'% (names[angle[2]-1],names[angle[3]-1],names[angle[4]-1],acoeffs[i][0]-typmax+1, acoeffs[i][1], acoeffs[i][2],angle[2], angle[3],angle[4]))
+           else:
+               py.write('       "%s-%s-%s":[%d, %.5f, %.5f, %d, %d, %d]'% (names[angle[2]-1],names[angle[3]-1],names[angle[4]-1],acoeffs[i][0]-typmax+1, acoeffs[i][1], acoeffs[i][2],angle[2], angle[3],angle[4]))
+        py.write('\n    }\n') 
+   
+    # Write Dihedral Section
+    py.write('    # Dihedral Parameters\n')
+    py.write('    dihs = {\n')
+    py.write("        'name':[")
+    count = 0
+    for dihedral in dihedrals:
+        if count == 0:
+            py.write('"%s-%s-%s-%s"' % (names[dihedral[2]-1],names[dihedral[3]-1],names[dihedral[4]-1],names[dihedral[5]-1]))
+        else:
+            py.write(',"%s-%s-%s-%s"' % (names[dihedral[2]-1],names[dihedral[3]-1],names[dihedral[4]-1],names[dihedral[5]-1]))
+        count += 1
+    py.write(']\n')
+    py.write('    }\n')
+    if nchar[3] > 0:
+        py.write('    dihs.update({\n')
+        count = 0
+        typmax = np.min(np.transpose(dcoeffs)[0])
+        for dihedral in dihedrals:
+           count += 1
+           i = count-1
+           py.write('        #%s-%s-%s-%s\n' % (names[dihedral[2]-1],names[dihedral[3]-1],names[dihedral[4]-1],names[dihedral[5]-1]))
+           if count != len(angles):
+               py.write('       "%s-%s-%s-%s":[%d, %.5f, %d,%.5f, %d, %d, %d, %d],\n'% (names[dihedral[2]-1],names[dihedral[3]-1],names[dihedral[4]-1],names[dihedral[5]-1],dcoeffs[i][0]-typmax+1, dcoeffs[i][1], dcoeffs[i][2],dcoeffs[i][3],dihedral[2], dihedral[3],dihedral[4],dihedral[5]))
+           else:
+               py.write('       "%s-%s-%s-%s":[%d, %.5f, %d,%.5f, %d, %d, %d, %d]'% (names[dihedral[2]-1],names[dihedral[3]-1],names[dihedral[4]-1],names[dihedral[5]-1],dcoeffs[i][0]-typmax+1, dcoeffs[i][1], dcoeffs[i][2],dcoeffs[i][3],dihedral[2], dihedral[3],dihedral[4],dihedral[5]))
+        py.write('\n    }\n')
+    # Write Improper Section
+    py.write('    # Improper Parameters\n')
+    py.write('    imps = {\n')
+    py.write("        'name':[")
+    count = 0
+    for improper in impropers:
+        if count == 0:
+            py.write('"%s-%s-%s-%s"' % (names[improper[2]-1],names[improper[3]-1],names[improper[4]-1],names[improper[5]-1]))
+        else:
+            py.write(',"%s-%s-%s-%s"' % (names[improper[2]-1],names[improper[3]-1],names[improper[4]-1],names[improper[5]-1]))
+        count += 1
+    py.write(']\n')
+    py.write('    }\n')
+    if nchar[3] > 0:
+        py.write('    imps.update({\n')
+        count = 0
+        typmax = np.min(np.transpose(icoeffs)[0])
+        for improper in impropers:
+           count += 1
+           i = count-1
+           py.write('        #%s-%s-%s-%s\n' % (names[improper[2]-1],names[improper[3]-1],names[improper[4]-1],names[improper[5]-1]))
+           if count != len(angles):
+               py.write('       "%s-%s-%s-%s":[%d, %.5f, %d,%.5f, %d, %d, %d, %d],\n'% (names[improper[2]-1],names[improper[3]-1],names[improper[4]-1],names[improper[5]-1],icoeffs[i][0]-typmax+1, icoeffs[i][1], icoeffs[i][2],icoeffs[i][3],improper[2], improper[3],improper[4],improper[5]))
+           else:
+               py.write('       "%s-%s-%s-%s":[%d, %.5f, %d,%.5f, %d, %d, %d, %d]'% (names[improper[2]-1],names[improper[3]-1],names[improper[4]-1],names[improper[5]-1],icoeffs[i][0]-typmax+1, icoeffs[i][1], icoeffs[i][2],icoeffs[i][3],improper[2], improper[3],improper[4],improper[5]))
+        py.write('\n    }\n')
     
-    py.write
+    py.write('    nchar = [%d, %d, %d, %d, %d]\n' % (nchar[0],nchar[1],nchar[2],nchar[3],nchar[4]))
+    py.write('    ntyps = [%d, %d, %d, %d, %d]\n' % (ntyps[0],ntyps[1],ntyps[2],ntyps[3],ntyps[4]))
+    py.write('    return nchar, ntyps, atms, bnds, angs, dihs, imps\n')
     py.close()
+    print("%s write complete." % outfile)
+    return
 
 
 
@@ -205,6 +384,7 @@ if __name__ == '__main__':
     
     # Main function call
     write_molec_py(infile,outfile,molname)
+    print("Program Complete. Good bye.")
     
 
 
