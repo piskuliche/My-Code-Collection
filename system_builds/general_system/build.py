@@ -147,6 +147,7 @@ def write_header():
     dat.write("\n")
     count = 1
     # Species 1 Masses
+    print(ATMS[2]["atype"])
     for i in range(num_components):
         a, indices = np.unique(ATMS[i]["atype"],return_index=True)
         for j in indices:
@@ -314,7 +315,7 @@ def write_lammps_dihedralcoeffs():
         lmps.write("# Dihedral Coeffs Species %s\n" % i)
         for dihedral in DIHS[i]['name']:
             if DIHS[i][dihedral][0]+start not in usedtyps:
-                lmps.write("dihedral_coeff %s %9.3f %s %9.3f\n" % (DIHS[i][dihedral][0]+start, DIHS[i][dihedral][1]*conv_force[i], DIHS[i][dihedral][2], DIHS[i][dihedral][3]))
+                lmps.write("dihedral_coeff %s %9.3f %s %d 0.0\n" % (DIHS[i][dihedral][0]+start, DIHS[i][dihedral][1]*conv_force[i], DIHS[i][dihedral][2], DIHS[i][dihedral][3]))
                 usedtyps.append(DIHS[i][dihedral][0]+start)
         start = max(usedtyps)
     lmps.close()

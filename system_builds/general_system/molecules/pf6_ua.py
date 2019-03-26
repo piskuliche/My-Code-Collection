@@ -6,12 +6,12 @@ def define_molec(num_spec, blength):
     HFP.write("7\n")
     HFP.write("PF6\n")
     HFP.write("P     0.000   0.000   0.000\n")
-    HFP.write("F     0.000   1.646   0.000\n")
-    HFP.write("F     0.000  -1.646   0.000\n")
-    HFP.write("F     1.646   0.000   0.000\n")
-    HFP.write("F    -1.646   0.000   0.000\n")
     HFP.write("F     0.000   0.000   1.646\n")
+    HFP.write("F     0.000   1.646   0.000\n")
     HFP.write("F     0.000   0.000  -1.646\n")
+    HFP.write("F     0.000  -1.646   0.000\n")
+    HFP.write("F    -1.646   0.000   0.000\n")
+    HFP.write("F     1.646   0.000   0.000\n")
     HFP.close()
     atms = {
             #        0    1    2   3      4    5   6

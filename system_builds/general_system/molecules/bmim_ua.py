@@ -68,7 +68,7 @@ def define_molec(num_spec, blength):
             })
     angs = {
             'name':["C8-C7-N1","C5-N1-C2","C4-N3-C2","N1-C2-H1","N3-C2-H1",
-                    "H2-C4-C5","H3-C5-C4","N3-C4-H2","N1-C5-H3","C7-C8-C9","C8-C9-C10"]
+                "H2-C4-C5","H3-C5-C4","N3-C4-H2","N1-C5-H3","C7-C8-C9","C8-C9-C10", "C4-N3-C6", "C2-N3-C6"]
             }
     angs.update({
             #CT2-CN2-Na
@@ -88,7 +88,12 @@ def define_molec(num_spec, blength):
             #CN2-CT2-CT2
             "C7-C8-C9":[6,263,109.5,atms["name"].index(angs['name'][9][:2]),atms["name"].index(angs['name'][9][3:5]),atms["name"].index(angs['name'][9][6:])],
             #CT2-CT2-CT3
-            "C8-C9-C10":[7,263,109.5,atms["name"].index(angs['name'][10][:2]),atms["name"].index(angs['name'][10][3:5]),atms["name"].index(angs['name'][10][6:])]
+            "C8-C9-C10":[7,263,109.5,atms["name"].index(angs['name'][10][:2]),atms["name"].index(angs['name'][10][3:5]),atms["name"].index(angs['name'][10][6:])],
+            #CW-NA-CN3
+            "C4-N3-C6":[8,209,125.7,atms["name"].index(angs['name'][11][:2]),atms["name"].index(angs['name'][11][3:5]),atms["name"].index(angs['name'][11][6:])],
+            #CR-NA-CN3
+            "C2-N3-C6":[9,209,126.3,atms["name"].index(angs['name'][12][:2]),atms["name"].index(angs['name'][12][3:5]),atms["name"].index(angs['name'][12][6:])]
+            
             })
     dihs = {
             'name':["C2-N3-C4-C5","N1-C5-C4-N3","N1-C2-N3-C4", "H1-C2-N1-C5","H1-C2-N3-C4", "H2-C4-C5-H3", "C4-C5-N1-C7", "C5-C4-N3-C6",
@@ -157,6 +162,6 @@ def define_molec(num_spec, blength):
     print("Note: The liu bmim_ua forcefield has dihedral style of type:     K(xi-xieq)^2")
     print("Note: The liu bmim_ua forcefield has improper style of type:     K(xi-xieq)^2")
     # Store the number of characteristics
-    nchar = [13,13,11,21,5]
-    ntyps = [11,8,7,6,2]
+    nchar = [13,13,13,21,5]
+    ntyps = [8,7,9,6,2]
     return nchar, ntyps, atms, bnds, angs, dihs, imps
