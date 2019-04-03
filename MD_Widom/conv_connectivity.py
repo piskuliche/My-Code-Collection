@@ -17,8 +17,10 @@ def read_connectivity(connectfile):
     coords_lines = []
     footer_lines = []
     mass         = []
+    typ          = []
     startflag, endflag = 0, 0
     mstart, mend, mcount = 0, 0, 0
+    tstart, tend, tcount = 0, 0 ,0
     natms = 0
     with open(connectfile) as cnf:
         for line in cnf:
@@ -26,10 +28,13 @@ def read_connectivity(connectfile):
                 startflag = 1
             elif "Types" in line:
                 endflag   = 1
+                tstart    = 1
             elif "Masses" in line:
                 mstart = 1
             elif "Bonds" in line:
                 mend   = 1
+            elif "Charges" in line:
+                tend = 1
             if startflag == 0:
                 header_lines.append(line)
                 if "atoms" in line:
@@ -43,8 +48,12 @@ def read_connectivity(connectfile):
                 if mcount >= 2 and mcount < 2 + natms:
                     mass.append(float(line.rstrip().split()[1]))
                 mcount += 1
+            if tstart == 1 and tend == 0:
+                if tcount >= 2 and tcount < 2 + natms:
+                    typ.append(int(line.rstrip().split()[1]))
+                tcount += 1
             
-    return natms, mass, header_lines, coords_lines, footer_lines
+    return natms, mass,typ, header_lines, coords_lines, footer_lines
 
 def read_xyz(connectfile):
     # Reads in coordinates from a file
