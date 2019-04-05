@@ -24,6 +24,7 @@ ln -s $homepath/MD_Widom/conv_connectivity.py bin/
 ln -s $homepath/MD_Widom/gen_ins.py bin/
 ln -s $homepath/MD_Widom/widom_backbone.py bin/
 ln -s $homepath/MD_Widom/widom_calculation.py bin/
+ln -s $homepath/MD_Widom/widom_farmer.py bin/
 ln -s $homepath/system_builds/general_system/molec_generator.py bin/
 
 chmod 777 bin/*

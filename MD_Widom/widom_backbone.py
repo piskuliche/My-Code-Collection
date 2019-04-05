@@ -64,14 +64,14 @@ def read_dump():
 
     return T_CN, X_CN, Y_CN, Z_CN, IX, IY, IZ
 
-def write_dump(step, L, boxshift, t, x, y, z, ix, iy, iz, newr, newt):
+def write_dump(step, L, boxshift, t, x, y, z, ix, iy, iz, newr, newt, job):
     natms = len(x)
     na    = len(newt)
     shift = L*boxshift
     xlo, xhi, ylo, yhi, zlo, zhi = 0.0, L, 0.0, L, 0.0, L
     maxt = max(t)
     if step == 0:
-        wr = open('dump_traj.widom','w')
+        wr = open('dump_traj.widom'+str(job),'w')
         wr.write("ITEM: TIMESTEP\n")
         wr.write("%d\n" % step)
         wr.write("ITEM: NUMBER OF ATOMS\n")
@@ -87,7 +87,7 @@ def write_dump(step, L, boxshift, t, x, y, z, ix, iy, iz, newr, newt):
             wr.write("%d %d %.6f %.6f %.6f %d %d %d\n" % (a+1+natms, newt[a]+maxt, newr[a][0], newr[a][1], newr[a][2], 0, 0, 0))
         wr.close()
     else:
-        wr = open('dump_traj.widom','a')
+        wr = open('dump_traj.widom'+str(job),'a')
         wr.write("ITEM: TIMESTEP\n")
         wr.write("%d\n" % step)
         wr.write("ITEM: NUMBER OF ATOMS\n")
@@ -129,11 +129,19 @@ if __name__ == "__main__":
         print("     num_blocks    - [integer]  number of blocks for block averaging")
         print("     num_solvent   - [integer]  number of solvent molecules")
         sys.exit()
-    elif len(sys.argv) > 1 and sys.argv[1] == "-in":
-        inpfile = str(sys.argv[2])
-        print("reading input file: %s " % inpfile)
+    if "-in" in sys.argv:
+        index = sys.argv.index("-in")+1
+        inpfile = str(sys.argv[index])
     else:
-        print("Invalid arguments, run with -h to see options")
+        print("No input file provided")
+        sys.exit()
+    if "-farm" in sys.argv:
+        index    = sys.argv.index("-farm")+1
+        farmjobs = int(sys.argv[index])
+        njob     = int(sys.argv[index+1])
+    else:
+        print("No farm info provided")
+        print("If not farming and only have single job run with -farm 1 1")
         sys.exit()
         
     try:
@@ -182,35 +190,24 @@ if __name__ == "__main__":
     gen.init_random()
     # Loop to make new trajectory file
     count = 0
+    if farmjobs > 1:
+        npfarm = (end_config - start_config)/farmjobs
+        offset = start_config
+        start_config = njob*npfarm + offset
+        end_config = (njob+1)*npfarm + offset
     for c in range(start_config, end_config):
         # Loop over insertions
         L = v_configs[c]**(1/3.)
-        print("Loop step %d of %d" % (c+1, end_config-start_config))
+        print("Loop step %d of %d" % (c+1, npfarm+start_config))
         for i in range(num_insert):
             if na > 1:
                 r = gen.rand_rot(tmpr)
             else:
                 r = tmpr
             r_translated, com_r = gen.rand_trans(r, L)
-            write_dump(count, L,boxshift, TYP[c], X[c], Y[c], Z[c],IX[c], IY[c], IZ[c], r_translated, ntyp)
+            write_dump(count, L,boxshift, TYP[c], X[c], Y[c], Z[c],IX[c], IY[c], IZ[c], r_translated, ntyp, njob)
             count += 1
         
 
 
-"""Pseudocode"""
-"""
-for i in range(nconfigs):
-    lmp.read(vol)
-    lmp.read(ener)
-    nu = []
-    for i in range(ninsertions):
-        lmp.insert
-        lmp.calcE
-        nu_test.append(lmp.read(nu_test))
-    efactor = exp_factor(beta, e, nu_test)
-    muex =
-
-
-
-"""
 

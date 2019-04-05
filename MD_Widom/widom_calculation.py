@@ -30,7 +30,6 @@ def calc_muex_H(beta, numerator, denominator, nblocks, nsolv):
     # Calc excess chem pot, H
     muex  = -1/beta*np.log(ratio)
     H     = rho/beta*ratio
-    print muex, H
 
     # Calculate the number of configs per block
     nvals = len(numerator)
@@ -62,7 +61,7 @@ if __name__ == "__main__":
     # Read the NML file
 
     if len(sys.argv) > 1 and sys.argv[1] == "-h":
-        print("Need to read an input file as python widom_calculate.py -in inputfile")
+        print("Need to read an input file as python widom_calculate.py -in inputfile -farm njobs")
         print("Possible input options are:")
         print("     nfile - [string]  file that holds the lammps style dumps (id type x y z)")
         print("     nconfigs   - [integer] number of configs in said file")
@@ -79,11 +78,18 @@ if __name__ == "__main__":
         print("     num_blocks    - [integer]  number of blocks for block averaging")
         print("     num_solvent   - [integer]  number of solvent molecules")
         sys.exit()
-    elif len(sys.argv) > 1 and sys.argv[1] == "-in":
-        inpfile = str(sys.argv[2])
-        print("reading input file: %s " % inpfile)
+    if "-in" in sys.argv:
+        index = sys.argv.index("-in")+1
+        inpfile = str(sys.argv[index])
     else:
-        print("Invalid arguments, run with -h to see options")
+        print("No input file provided")
+        sys.exit()
+    if "-farm" in sys.argv:
+        index    = sys.argv.index("-farm")+1
+        farmjobs = int(sys.argv[index])
+    else:
+        print("No farm info provided")
+        print("If not farming and only have single job run with -farm 1 ")
         sys.exit()
 
     try:
@@ -114,11 +120,21 @@ if __name__ == "__main__":
     # Define constants
     kb = 0.0019872041 # kcal/(mol K)
     beta = 1.0/(kb*temperature) # mol/kcal
+    convfactor = 69.478579 #molec/ang^3 * kcal/mol -> kbar
     # Read in the insertion energies
-    pe, vol = wb.read_log(ins_logfile, ecol, volcol)
+    if farmjobs == 1:
+        pe, vol = wb.read_log(ins_logfile+str(1), ecol, volcol)
+    else:
+        pe, vol = [], []
+        for i in range(farmjobs):
+            tmpp, tmpv = wb.read_log(ins_logfile+str(i), ecol, volcol)
+            for val in tmpp:
+                pe.append(val)
+            for val in tmpv:
+                vol.append(val)
     # Read in the config energies
     pe_conf, vol = wb.read_log(logfile, ecol, volcol)
-    
+    print(len(pe)) 
 
     boltz_fact = []
     num, denom = [], []
@@ -132,7 +148,8 @@ if __name__ == "__main__":
         num.append(vol[c]*boltz_fact[c])
         denom.append(vol[c])
     ex_chempot, err_ex_chempot, henry, err_henry = calc_muex_H(beta, num, denom, nblocks, nsolvent)
-    print(ex_chempot, err_ex_chempot, henry, err_henry)
+    print("Excess Chemical potential: %.6f +/- %.6f" % (ex_chempot, err_ex_chempot))
+    print("Henry's Law Constant: %.6f +/- %.6f" % (henry*convfactor, err_henry*convfactor))
 
 
 
