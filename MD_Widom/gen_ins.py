@@ -22,7 +22,7 @@ def calculate_com(r, M):
     natms = len(r)
     for i in range(3):
         for atm in range(natms):
-            com_r[i] += M[i]*r[atm][i]
+            com_r[i] += M[atm]*r[atm][i]
     com_r[:] = com_r[:]/np.sum(M)
     return com_r
 
@@ -53,20 +53,27 @@ def rand_quaternion():
     
 def quaternion_to_rotmatrix(a):
     """ This generates the rotation matrix from the quaternion of interest"""
-    A11 = a[0]**2.+a[1]**2.-a[2]**2.-a[3]**2.
-    A22 = a[0]**2.-a[1]**2.+a[2]**2.-a[3]**2.
-    A33 = a[0]**2.-a[1]**2.-a[2]**2.+a[3]**2.
-    A12 = 2*(a[1]*a[2]+a[0]*a[3])
-    A13 = 2*(a[1]*a[3]-a[0]*a[2])
-    A21 = 2*(a[1]*a[2]-a[0]*a[3])
-    A23 = 2*(a[2]*a[3]+a[0]*a[1])
-    A31 = 2*(a[1]*a[3]+a[0]*a[2])
-    A32 = 2*(a[2]*a[3]-a[0]*a[1])
+    a1a2 = a[1]*a[2]
+    a0a3 = a[0]*a[3]
+    a0a1 = a[0]*a[1]
+    a0a2 = a[0]*a[2]
+    a2a3 = a[2]*a[3]
+    a1a3 = a[1]*a[3]
+    a0sq, a1sq, a2sq, a3sq = a[0]**2., a[1]**2., a[2]**2., a[3]**2.
+    A11 = a0sq + a1sq - a2sq - a3sq
+    A22 = a0sq - a1sq + a2sq - a3sq
+    A33 = a0sq - a1sq - a2sq + a3sq
+    A12 = 2*(a1a2+a0a3)
+    A13 = 2*(a1a3-a0a2)
+    A21 = 2*(a1a2-a0a3)
+    A23 = 2*(a2a3+a0a1)
+    A31 = 2*(a1a3+a0a2)
+    A32 = 2*(a2a3-a0a1)
 
     A = [[A11,A12,A13],[A21,A22,A23],[A31,A32,A33]]
     return A
 
-def rand_rot(r, com_r):
+def rand_rot(r):
     """Chooses a random quaternion and then applies it to the molecule"""
     a = rand_quaternion()
     A = quaternion_to_rotmatrix(a)
@@ -74,8 +81,8 @@ def rand_rot(r, com_r):
     for r_atom in r:
         dr = []
         for i in range(len(r_atom)):
-            dr.append(r_atom[i]-com_r[i])
-        tmpr = np.matmul(A, dr) + com_r
+            dr.append(r_atom[i])
+        tmpr = np.matmul(A, dr)
         newr.append(tmpr)
     return newr
 
@@ -97,7 +104,7 @@ def print_rot(r,newr):
     g.close()
     return
 
-def rand_trans(r,com_r,L):
+def rand_trans(r,L):
     rval = [0,0,0]
     newcom_r = []
     r_trans = []
@@ -106,13 +113,12 @@ def rand_trans(r,com_r,L):
     rval[1] = random.random()
     rval[2] = random.random()
 
-    for i in range(len(com_r)):
+    for i in range(3):
         newcom_r.append(rval[i]*L)
-    
     for atom in range(len(r)):
         r_shift = []
         for i in range(3):
-            tmpr = r[atom][i] - com_r[i] + newcom_r[i]
+            tmpr = r[atom][i] + newcom_r[i]
             r_shift.append(tmpr)
         r_trans.append(r_shift)
     return r_trans, newcom_r
