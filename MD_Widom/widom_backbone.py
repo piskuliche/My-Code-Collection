@@ -191,14 +191,14 @@ if __name__ == "__main__":
     # Loop to make new trajectory file
     count = 0
     if farmjobs > 1:
-        npfarm = (end_config - startconfig)/farmjobs
+        npfarm = (end_config - start_config)/farmjobs
         offset = start_config
         start_config = njob*npfarm + offset
         end_config = (njob+1)*npfarm + offset
     for c in range(start_config, end_config):
         # Loop over insertions
         L = v_configs[c]**(1/3.)
-        print("Loop step %d of %d" % (c+1, npfarm+star_config))
+        print("Loop step %d of %d" % (c+1, npfarm+start_config))
         for i in range(num_insert):
             if na > 1:
                 r = gen.rand_rot(tmpr)

@@ -30,7 +30,6 @@ def calc_muex_H(beta, numerator, denominator, nblocks, nsolv):
     # Calc excess chem pot, H
     muex  = -1/beta*np.log(ratio)
     H     = rho/beta*ratio
-    print muex, H
 
     # Calculate the number of configs per block
     nvals = len(numerator)
@@ -121,6 +120,7 @@ if __name__ == "__main__":
     # Define constants
     kb = 0.0019872041 # kcal/(mol K)
     beta = 1.0/(kb*temperature) # mol/kcal
+    convfactor = 69.478579 #molec/ang^3 * kcal/mol -> kbar
     # Read in the insertion energies
     if farmjobs == 1:
         pe, vol = wb.read_log(ins_logfile+str(1), ecol, volcol)
@@ -134,7 +134,7 @@ if __name__ == "__main__":
                 vol.append(val)
     # Read in the config energies
     pe_conf, vol = wb.read_log(logfile, ecol, volcol)
-    
+    print(len(pe)) 
 
     boltz_fact = []
     num, denom = [], []
@@ -148,7 +148,8 @@ if __name__ == "__main__":
         num.append(vol[c]*boltz_fact[c])
         denom.append(vol[c])
     ex_chempot, err_ex_chempot, henry, err_henry = calc_muex_H(beta, num, denom, nblocks, nsolvent)
-    print(ex_chempot, err_ex_chempot, henry, err_henry)
+    print("Excess Chemical potential: %.6f +/- %.6f" % (ex_chempot, err_ex_chempot))
+    print("Henry's Law Constant: %.6f +/- %.6f" % (henry*convfactor, err_henry*convfactor))
 
 
 
