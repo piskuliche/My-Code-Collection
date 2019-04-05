@@ -7,7 +7,7 @@ def molecule(spectype, num_spec, blength):
     pm = open(pmolfile, 'a')
     pm.write("structure tmp/"+spectype.lower()+".xyz\n")
     pm.write("  number %s\n" % num_spec)
-    pm.write("  inside box 2. 2. 2. %s %s %s\n" % (blength, blength, blength))
+    pm.write("  inside box 2. 2. 2. %s %s %s\n" % (blength-2., blength-2., blength-2.))
     pm.write("end structure\n")
     pm.write("\n")
     pm.close()

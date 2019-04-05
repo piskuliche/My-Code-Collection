@@ -126,6 +126,16 @@ def write_atm_line(secname, array,nchar):
     line = ("        '%s':[" % secname)
     for i in range(nchar[0]):
         if i != 0:
+            line += (',%s' % array[i])
+        else:
+            line += ('%s' % array[i])
+    line += ("],\n")
+    return line
+
+def write_atm_line_str(secname, array,nchar):
+    line = ("        '%s':[" % secname)
+    for i in range(nchar[0]):
+        if i != 0:
             line += (',"%s"' % array[i])
         else:
             line += ('"%s"' % array[i])
@@ -140,10 +150,10 @@ def read_names(molname):
             names.append(str(line.split()[1]))
     return names
 
-def read_paircoeffs(types,nchar):
+def read_paircoeffs(types,nchar,molname):
     coeffs = []
     pcoeffs = []
-    with open('lmps.paircoeffs') as lmps:
+    with open(molname+'.paircoeffs') as lmps:
         for line in lmps:
             coeffs.append([int(line.split()[1]), int(line.split()[2]), float(line.split()[3]), float(line.split()[4])])
     typmax = np.min(np.transpose(types)[1])
@@ -151,10 +161,10 @@ def read_paircoeffs(types,nchar):
         pcoeffs.append(coeffs[types[i][1]- typmax])
     return pcoeffs
 
-def read_bondcoeffs(bonds, nchar):
+def read_bondcoeffs(bonds, nchar,molname):
     coeffs = []
     bcoeffs =[]
-    with open('lmps.bondcoeffs') as lmps:
+    with open(molname+'.bondcoeffs') as lmps:
         for line in lmps:
             coeffs.append([int(line.split()[1]), float(line.split()[2]), float(line.split()[3])])
     typmax = int(np.min(np.transpose(coeffs)[0]))
@@ -162,10 +172,10 @@ def read_bondcoeffs(bonds, nchar):
         bcoeffs.append(coeffs[bonds[i][1]-typmax])
     return bcoeffs
 
-def read_anglecoeffs(angles, nchar):
+def read_anglecoeffs(angles, nchar,molname):
     coeffs = []
     acoeffs =[]
-    with open('lmps.anglecoeffs') as lmps:
+    with open(molname+'.anglecoeffs') as lmps:
         for line in lmps:
             coeffs.append([int(line.split()[1]), float(line.split()[2]), float(line.split()[3])])
     typmax = int(np.min(np.transpose(coeffs)[0]))
@@ -173,10 +183,10 @@ def read_anglecoeffs(angles, nchar):
         acoeffs.append(coeffs[angles[i][1]-typmax])
     return acoeffs
 
-def read_dihedralcoeffs(dihedrals, nchar):
+def read_dihedralcoeffs(dihedrals, nchar,molname):
     coeffs = []
     dcoeffs =[]
-    with open('lmps.dihedralcoeffs') as lmps:
+    with open(molname+'.dihedralcoeffs') as lmps:
         for line in lmps:
             coeffs.append([int(line.split()[1]), float(line.split()[2]), float(line.split()[3]),float(line.split()[4])])
     typmax = int(np.min(np.transpose(coeffs)[0]))
@@ -184,10 +194,10 @@ def read_dihedralcoeffs(dihedrals, nchar):
         dcoeffs.append(coeffs[dihedrals[i][1]-typmax])
     return dcoeffs
 
-def read_impropercoeffs(impropers, nchar):
+def read_impropercoeffs(impropers, nchar,molname):
     coeffs = []
     icoeffs =[]
-    with open('lmps.impropercoeffs') as lmps:
+    with open(molname+'.impropercoeffs') as lmps:
         for line in lmps:
             coeffs.append([int(line.split()[1]), float(line.split()[2]), float(line.split()[3]),float(line.split()[4])])
     typmax = int(np.min(np.transpose(coeffs)[0]))
@@ -201,14 +211,15 @@ def write_molec_py(infile,outfile,molname):
     ntyps = calc_ntypes(types, bonds, angles, dihedrals, impropers)
     names = read_names(molname)
     # Coeffs
-    pcoeffs = read_paircoeffs(types,nchar)
-    bcoeffs = read_bondcoeffs(bonds, nchar)
+    pcoeffs = read_paircoeffs(types,nchar,molname)
+    if nchar[1] != 0:
+        bcoeffs = read_bondcoeffs(bonds, nchar,molname)
     if nchar[2] != 0:
-        acoeffs = read_anglecoeffs(angles, nchar)
+        acoeffs = read_anglecoeffs(angles, nchar,molname)
     if nchar[3] != 0:
-        dcoeffs = read_dihedralcoeffs(dihedrals, nchar)
+        dcoeffs = read_dihedralcoeffs(dihedrals, nchar,molname)
     if nchar[4] != 0:
-        Icoeffs = read_impropercoeffs(impropers, nchar)
+        Icoeffs = read_impropercoeffs(impropers, nchar,molname)
 
     zeros = np.zeros(nchar[0])
 
@@ -217,7 +228,7 @@ def write_molec_py(infile,outfile,molname):
     # Write the header
     py.write("import numpy as np\n")
     # Write the function call
-    py.write("def define_molec(num_spec, blength)\n")
+    py.write("def define_molec(num_spec, blength):\n")
     py.write('    mol_file = "tmp/%s.xyz"\n' % molname)
     py.write("    mol = open(mol_file, 'w')\n")
     py.write(r'    mol.write("%d\n")' % nchar[0])
@@ -231,8 +242,8 @@ def write_molec_py(infile,outfile,molname):
     # Write Atoms Section
     py.write('    # Atomic Parameters\n')
     py.write('    atms = {\n')
-    py.write('%s' % write_atm_line('name', names,nchar))
-    py.write('%s' % write_atm_line('types', np.transpose(types)[1]-np.min(np.transpose(types)[1])+1,nchar))
+    py.write('%s' % write_atm_line_str('name', names,nchar))
+    py.write('%s' % write_atm_line('atype', np.transpose(types)[1]-np.min(np.transpose(types)[1])+1,nchar))
     py.write('%s' % write_atm_line('q', np.transpose(charges)[1],nchar))
     py.write('%s' % write_atm_line('eps', np.transpose(pcoeffs)[2],nchar))
     py.write("        'rmin':")
@@ -262,16 +273,17 @@ def write_molec_py(infile,outfile,molname):
     py.write('        # Units kb:\n')
     py.write('        # Units r:\n')
     count = 0
-    typmax = np.min(np.transpose(bcoeffs)[0])
+    if nchar[1] != 0:
+        typmax = np.min(np.transpose(bcoeffs)[0])
     for bond in bonds:
        count += 1
        i = count-1
        py.write('        #%s-%s\n' % (names[bond[2]-1],names[bond[3]-1]))
        if count != len(bonds):
-           py.write('       "%s-%s":[%d, %.5f, %.5f, %d, %d],\n'% (names[bond[2]-1],names[bond[3]-1],bcoeffs[i][0]-typmax+1, bcoeffs[i][1], bcoeffs[i][2],bond[2], bond[3]))
+           py.write('       "%s-%s":[%d, %.5f, %.5f, %d, %d],\n'% (names[bond[2]-1],names[bond[3]-1],bcoeffs[i][0]-typmax+1, bcoeffs[i][1], bcoeffs[i][2],bond[2]-1, bond[3]-1))
        else:
-           py.write('       "%s-%s":[%d, %.5f, %.5f, %d, %d]\n'% (names[bond[2]-1],names[bond[3]-1],bcoeffs[i][0]-typmax+1, bcoeffs[i][1], bcoeffs[i][2],bond[2], bond[3]))
-    py.write('    }\n')
+           py.write('       "%s-%s":[%d, %.5f, %.5f, %d, %d]\n'% (names[bond[2]-1],names[bond[3]-1],bcoeffs[i][0]-typmax+1, bcoeffs[i][1], bcoeffs[i][2],bond[2]-1, bond[3]-1))
+    py.write('    })\n')
     # Write Angles Section
     py.write('    # Angle Parameters\n')
     py.write('    angs = {\n')
@@ -294,10 +306,10 @@ def write_molec_py(infile,outfile,molname):
            i = count-1
            py.write('        #%s-%s-%s\n' % (names[angle[2]-1],names[angle[3]-1],names[angle[4]-1]))
            if count != len(angles):
-               py.write('       "%s-%s-%s":[%d, %.5f, %.5f, %d, %d, %d],\n'% (names[angle[2]-1],names[angle[3]-1],names[angle[4]-1],acoeffs[i][0]-typmax+1, acoeffs[i][1], acoeffs[i][2],angle[2], angle[3],angle[4]))
+               py.write('       "%s-%s-%s":[%d, %.5f, %.5f, %d, %d, %d],\n'% (names[angle[2]-1],names[angle[3]-1],names[angle[4]-1],acoeffs[i][0]-typmax+1, acoeffs[i][1], acoeffs[i][2],angle[2]-1, angle[3]-1,angle[4]-1))
            else:
-               py.write('       "%s-%s-%s":[%d, %.5f, %.5f, %d, %d, %d]'% (names[angle[2]-1],names[angle[3]-1],names[angle[4]-1],acoeffs[i][0]-typmax+1, acoeffs[i][1], acoeffs[i][2],angle[2], angle[3],angle[4]))
-        py.write('\n    }\n') 
+               py.write('       "%s-%s-%s":[%d, %.5f, %.5f, %d, %d, %d]'% (names[angle[2]-1],names[angle[3]-1],names[angle[4]-1],acoeffs[i][0]-typmax+1, acoeffs[i][1], acoeffs[i][2],angle[2]-1, angle[3]-1,angle[4]-1))
+        py.write('\n    })\n') 
    
     # Write Dihedral Section
     py.write('    # Dihedral Parameters\n')
@@ -321,10 +333,10 @@ def write_molec_py(infile,outfile,molname):
            i = count-1
            py.write('        #%s-%s-%s-%s\n' % (names[dihedral[2]-1],names[dihedral[3]-1],names[dihedral[4]-1],names[dihedral[5]-1]))
            if count != len(angles):
-               py.write('       "%s-%s-%s-%s":[%d, %.5f, %d,%.5f, %d, %d, %d, %d],\n'% (names[dihedral[2]-1],names[dihedral[3]-1],names[dihedral[4]-1],names[dihedral[5]-1],dcoeffs[i][0]-typmax+1, dcoeffs[i][1], dcoeffs[i][2],dcoeffs[i][3],dihedral[2], dihedral[3],dihedral[4],dihedral[5]))
+               py.write('       "%s-%s-%s-%s":[%d, %.5f, %d,%.5f, %d, %d, %d, %d],\n'% (names[dihedral[2]-1],names[dihedral[3]-1],names[dihedral[4]-1],names[dihedral[5]-1],dcoeffs[i][0]-typmax+1, dcoeffs[i][1], dcoeffs[i][2],dcoeffs[i][3],dihedral[2]-1, dihedral[3]-1,dihedral[4]-1,dihedral[5]-1))
            else:
-               py.write('       "%s-%s-%s-%s":[%d, %.5f, %d,%.5f, %d, %d, %d, %d]'% (names[dihedral[2]-1],names[dihedral[3]-1],names[dihedral[4]-1],names[dihedral[5]-1],dcoeffs[i][0]-typmax+1, dcoeffs[i][1], dcoeffs[i][2],dcoeffs[i][3],dihedral[2], dihedral[3],dihedral[4],dihedral[5]))
-        py.write('\n    }\n')
+               py.write('       "%s-%s-%s-%s":[%d, %.5f, %d,%.5f, %d, %d, %d, %d]'% (names[dihedral[2]-1],names[dihedral[3]-1],names[dihedral[4]-1],names[dihedral[5]-1],dcoeffs[i][0]-typmax+1, dcoeffs[i][1], dcoeffs[i][2],dcoeffs[i][3],dihedral[2]-1, dihedral[3]-1,dihedral[4]-1,dihedral[5]-1))
+        py.write('\n    })\n')
     # Write Improper Section
     py.write('    # Improper Parameters\n')
     py.write('    imps = {\n')
@@ -347,10 +359,10 @@ def write_molec_py(infile,outfile,molname):
            i = count-1
            py.write('        #%s-%s-%s-%s\n' % (names[improper[2]-1],names[improper[3]-1],names[improper[4]-1],names[improper[5]-1]))
            if count != len(angles):
-               py.write('       "%s-%s-%s-%s":[%d, %.5f, %d,%.5f, %d, %d, %d, %d],\n'% (names[improper[2]-1],names[improper[3]-1],names[improper[4]-1],names[improper[5]-1],icoeffs[i][0]-typmax+1, icoeffs[i][1], icoeffs[i][2],icoeffs[i][3],improper[2], improper[3],improper[4],improper[5]))
+               py.write('       "%s-%s-%s-%s":[%d, %.5f, %d,%.5f, %d, %d, %d, %d],\n'% (names[improper[2]-1],names[improper[3]-1],names[improper[4]-1],names[improper[5]-1],icoeffs[i][0]-typmax+1, icoeffs[i][1], icoeffs[i][2],icoeffs[i][3],improper[2]-1, improper[3]-1,improper[4]-1,improper[5]-1))
            else:
-               py.write('       "%s-%s-%s-%s":[%d, %.5f, %d,%.5f, %d, %d, %d, %d]'% (names[improper[2]-1],names[improper[3]-1],names[improper[4]-1],names[improper[5]-1],icoeffs[i][0]-typmax+1, icoeffs[i][1], icoeffs[i][2],icoeffs[i][3],improper[2], improper[3],improper[4],improper[5]))
-        py.write('\n    }\n')
+               py.write('       "%s-%s-%s-%s":[%d, %.5f, %d,%.5f, %d, %d, %d, %d]'% (names[improper[2]-1],names[improper[3]-1],names[improper[4]-1],names[improper[5]-1],icoeffs[i][0]-typmax+1, icoeffs[i][1], icoeffs[i][2],icoeffs[i][3],improper[2]-1, improper[3]-1,improper[4]-1,improper[5]-1))
+        py.write('\n    })\n')
     
     py.write('    nchar = [%d, %d, %d, %d, %d]\n' % (nchar[0],nchar[1],nchar[2],nchar[3],nchar[4]))
     py.write('    ntyps = [%d, %d, %d, %d, %d]\n' % (ntyps[0],ntyps[1],ntyps[2],ntyps[3],ntyps[4]))

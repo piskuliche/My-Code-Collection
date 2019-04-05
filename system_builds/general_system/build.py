@@ -147,7 +147,6 @@ def write_header():
     dat.write("\n")
     count = 1
     # Species 1 Masses
-    print(ATMS[2]["atype"])
     for i in range(num_components):
         a, indices = np.unique(ATMS[i]["atype"],return_index=True)
         for j in indices:
@@ -285,7 +284,8 @@ def write_lammps_bondcoeffs():
             if BNDS[i][bond][0]+start not in usedtyps:
                 lmps.write("bond_coeff %s %9.3f %9.3f\n" % (BNDS[i][bond][0]+start, BNDS[i][bond][1]*conv_force[i], BNDS[i][bond][2]))
                 usedtyps.append(BNDS[i][bond][0]+start)
-        start = max(usedtyps)
+        if usedtyps:
+            start = max(usedtyps)
     lmps.close()
     return
 
@@ -301,7 +301,8 @@ def write_lammps_anglecoeffs():
             if ANGS[i][angle][0]+start not in usedtyps:
                 lmps.write("angle_coeff %s %9.3f %9.3f\n" % (ANGS[i][angle][0]+start, ANGS[i][angle][1]*conv_force[i], ANGS[i][angle][2]))
                 usedtyps.append(ANGS[i][angle][0]+start)
-        start = max(usedtyps)
+        if usedtyps:
+            start = max(usedtyps)
     lmps.close()
     return
 
@@ -317,7 +318,8 @@ def write_lammps_dihedralcoeffs():
             if DIHS[i][dihedral][0]+start not in usedtyps:
                 lmps.write("dihedral_coeff %s %9.3f %s %d 0.0\n" % (DIHS[i][dihedral][0]+start, DIHS[i][dihedral][1]*conv_force[i], DIHS[i][dihedral][2], DIHS[i][dihedral][3]))
                 usedtyps.append(DIHS[i][dihedral][0]+start)
-        start = max(usedtyps)
+        if usedtyps:
+            start = max(usedtyps)
     lmps.close()
     return
 
@@ -333,7 +335,8 @@ def write_lammps_impropercoeffs():
             if IMPS[i][improper][0]+start not in usedtyps:
                 lmps.write("improper_coeff %s %9.3f %9.3f\n" % (IMPS[i][improper][0]+start, IMPS[i][improper][1]*conv_force[i], IMPS[i][improper][2]))
                 usedtyps.append(IMPS[i][improper][0]+start)
-        start = max(usedtyps)
+        if usedtyps:
+            start = max(usedtyps)
     lmps.close()
     return
 
@@ -585,8 +588,15 @@ def write_connectivity():
             typ_start[typ] += NTYPS[i][typ]
         cnf.close()
     return
-        
 
+
+def connectflag(NCHAR):
+    """Small function that checks if there are each type of connectivity"""
+    flags = [False,False,False,False,False]
+    for i in range(5):
+        if np.sum(np.transpose(NCHAR)[i]) != 0:
+            flags[i]=True
+    return flags
 
 
 
@@ -594,16 +604,22 @@ def write_connectivity():
 NCHAR, NTYPS, ATMS, BNDS, ANGS, DIHS, IMPS = gen_packmol()
 subprocess.call(["/panfs/pfs.local/work/laird/e924p726/thompsonwork/Programs/Executables/packmol < system.pmol > packmol.output"], shell=True)
 x,y,z = np.genfromtxt('system.xyz', usecols=(1,2,3), unpack=True, skip_header=2)
+flags = connectflag(NCHAR)
 write_header()
-write_atoms()
-write_bonds()
-write_angles()
-write_dihedrals()
-write_impropers()
+if flags[0] == True:
+    write_atoms()
+if flags[1] == True:
+    write_bonds()
+if flags[2] == True:
+    write_angles()
+if flags[3] == True:
+    write_dihedrals()
+if flags[4] == True:
+    write_impropers()
 write_lammps_paircoeffs()
 write_lammps_bondcoeffs()
 write_lammps_anglecoeffs()
 write_lammps_dihedralcoeffs()
 write_lammps_impropercoeffs()
-write_raspa_ff()
+#write_raspa_ff()
 write_connectivity()
