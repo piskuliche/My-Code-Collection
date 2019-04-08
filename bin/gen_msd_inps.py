@@ -1,1 +1,1 @@
-/home/e924p726/My-Code-Collection//diffusion/msd/gen_msd_inps.py
+/home/e924p726/My-Code-Collection//Simulation_Analysis/Mean-Squared-Displacement/gen_msd_inps.py

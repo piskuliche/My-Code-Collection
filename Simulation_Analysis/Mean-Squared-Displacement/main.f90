@@ -21,8 +21,8 @@ Program msd_rot_calc
     real, dimension(10) :: M, tmpmsd
     real, dimension(20) :: bl_cm_tmpmsd
     real, dimension(20,10) :: bl_tmpmsd
-    real, dimension(100000,1000,10,3) :: r
-    real, dimension(100000,1000,3) :: r_cm
+    real, dimension(500000,1000,10,3) :: r
+    real, dimension(500000,1000,3) :: r_cm
     real, dimension(1000,10,3) :: r_old, shift
     real, dimension(1000,3) :: r_cm_old, shift_cm
     real, dimension(1000,3) :: e1, e2, e1_zero, e2_zero

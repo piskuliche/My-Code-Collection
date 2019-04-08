@@ -29,7 +29,7 @@ def calc_muex_H(beta, numerator, denominator, nblocks, nsolv):
     rho   = nsolv/np.average(denominator)
     # Calc excess chem pot, H
     muex  = -1/beta*np.log(ratio)
-    H     =  rho/beta*ratio
+    H     =  rho*(1/beta)*np.exp(muex*beta)
 
     # Calculate the number of configs per block
     nvals = len(numerator)
@@ -45,7 +45,6 @@ def calc_muex_H(beta, numerator, denominator, nblocks, nsolv):
         rho = nsolv/np.average(denominator[s:e])
         bl_muex.append(-1/beta*np.log(ratio_bl))
         bl_H.append(rho/beta*ratio_bl)
-    print(bl_H) 
     muex_error, H_error = np.std(bl_muex)*t_val/np.sqrt(nblocks-1), np.std(bl_H)*t_val/np.sqrt(nblocks-1)
     return muex, muex_error, H, H_error
 
@@ -134,19 +133,18 @@ if __name__ == "__main__":
                 vol.append(val)
     # Read in the config energies
     pe_conf, vol = wb.read_log(logfile, ecol, volcol)
+    print(len(vol))
     boltz_fact = []
     num, denom = [], []
     for c in range(start_config, end_config):
         """This calculates the ratio <V <e^-(beta*nu)>>/<V>"""
         s = c*num_insert
         e = (c+1)*num_insert
-        print s, e
         # Calculates <e^-(beta*nu)> over insertions in config
-        ediff = np.array(pe[s:e])-pe_conf[c]
+        ediff = (np.array(pe[s:e])-pe_conf[c])
         boltz_fact.append(calc_exp_factor(beta, ediff))
         num.append(vol[c]*boltz_fact[c])
         denom.append(vol[c])
-    print(np.average(vol))
     ex_chempot, err_ex_chempot, henry, err_henry = calc_muex_H(beta, num, denom, nblocks, nsolvent)
     print("Excess Chemical potential: %.6f +/- %.6f" % (ex_chempot, err_ex_chempot))
     print("Henry's Law Constant: %.6f +/- %.6f" % (henry*convfactor, err_henry*convfactor))

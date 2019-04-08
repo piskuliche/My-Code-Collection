@@ -1,1 +1,1 @@
-/home/e924p726/My-Code-Collection//CP2K_Util/wham_generation/wham_histogram.py
+/home/e924p726/My-Code-Collection//Util/CP2K/wham_generation/wham_histogram.py
