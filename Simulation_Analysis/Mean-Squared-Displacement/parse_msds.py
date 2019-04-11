@@ -53,16 +53,19 @@ if __name__ == "__main__":
     
     cm_msd_av  = np.array(cm_msd).mean(axis=0)
     cm_msd_err = np.array(cm_msd).std(axis=0)*t_val/np.sqrt(nblocks)
-    outarr = []
-    outarr.append(time)
-    for j in range(natms):
-        print(msd_atm[j])
-        outarr.append(np.array(msd_atm[j]).mean(axis=0))
-        outarr.append(np.array(msd_atm[j]).std(axis=0))*t_val/np.sqrt(nblocks)
-    np.savetxt(filestring+".dat", outarr)
-    np.savetxt("cm+"+filestring+".dat", np.c_[time, cm_msd_av, cm_msd_err])
+
+    g = open(filestring+".dat", 'w')
+    for i in range(len(time[0])):
+        g.write("%.2f " % time[0][i])
+        for j in range(natms):
+            g.write(" %.6f %.6f" % (np.array(msd_atm[j]).mean(axis=0)[i], np.array(msd_atm[j]).std(axis=0)[i]*t_val/np.sqrt(nblocks)))
+        g.write("\n")
+    g.close()
+
+    np.savetxt("cm_"+filestring+".dat", np.c_[time[0], cm_msd_av, cm_msd_err])
     print("All MSDs have been parsed")
 
 
 
-        
+       
+
