@@ -7,7 +7,7 @@ Program msd_rot_calc
     integer :: nt, or_int
     integer :: natms, nmols, atms_per_mol
     integer :: startskip, endskip, startconfig, endconfig, nconfigs, ntos
-    integer :: nblocks
+    integer :: nblocks, shamblock, nperblock
     integer :: msdindex, c2index1, c2index2
     integer :: com, counti
     integer :: tospblock
@@ -16,6 +16,7 @@ Program msd_rot_calc
     real    :: MASS, cm_tmpmsd
    
     integer    :: ioerr
+    logical    :: needblock
 
     real, dimension(3) :: L
     real, dimension(10) :: M, tmpmsd
@@ -32,9 +33,11 @@ Program msd_rot_calc
 
     character(len=10) nfile, mol_name
     character(len=2) ctmp
+    character(len=2) blstr
 
     NAMELIST /nml/ nfile, nt, or_int, dt, mol_name,nblocks &
-        startskip, endskip, startconfig, endconfig, L, nmols
+        startskip, endskip, startconfig, endconfig, L, nmols, &
+        needblock, shamblock
 
     ! Example defaults
     nfile           = "traj.xyz" ! Traj File Name
@@ -51,6 +54,8 @@ Program msd_rot_calc
     startskip       = 2          ! Lines to skip at beginning of frame
     endskip         = 0          ! Lines to skip at end of frame
     nblocks         = 5          ! Default number of blocks
+    needblock       = .true.     ! .true. turns on block averaging
+    shamblock       = 0          ! acts as the psuedoblock for block aving
     
     ! Namelist from standard input
     READ ( unit=input_unit, nml=nml, iostat=ioerr)
@@ -86,12 +91,33 @@ Program msd_rot_calc
     write( unit=output_unit,*) atms_per_mol 
 
     volume = L(1) * L(2) * L(3)
-    
-    
+    nconfigs = endconfig-startconfig
+    ! This part checks the state of needblock
+    ! If needblock is .true. analysis skips
+    ! If needblock is .false. this sets...
+    ! the start and end config to a particular
+    ! value based on which sham block is present
+
+    if ( needblock == .false.) then
+        ! Ends program if shamblock larger than nblocks
+        if (shamblock >= nblocks) then
+            write(*,*) "Incorrect value for shamblock"
+            stop 0
+        end if 
+        ! Calculates number of configs per block
+        nperblock   = nconfigs/nblocks
+        ! Resets values of startconfig and end config
+        startconfig = startconfig + shamblock*nperblock
+        endconfig   = startconfig + (shamblock+1)*nperblock
+        ! Resets value of nconfigs
+        nconfigs    = endconfig - startconfig
+    end if
+
     ! Read the trajectory file
     open(12,file=trim(nfile),status='old') ! Open trajecotry file
     write( unit=output_unit,*) 'Reading file ', trim(nfile)
     
+    ! This skips all frames up to startconfig
     do i=1, startconfig
         do j=1, startskip
             read(12,*)
@@ -105,9 +131,9 @@ Program msd_rot_calc
             read(12,*)
         enddo
     enddo
-    nconfigs = endconfig-startconfig
     
-    do i=1, endconfig-startconfig
+    ! This reads nconfigs frames
+    do i=1, nconfigs
         if (MOD(i,5000) == 0) then
             write(*,*) 'Configuration ',i,'read in.'
         end if
@@ -118,9 +144,11 @@ Program msd_rot_calc
             do k=1, atms_per_mol
                 read(12,*) ctmp, (r(i,j,k,a), a=1,3)
                 if ( k /= 1 ) then
+                    ! Read in w/ periodic boundary conditions
                     r(i,j,k,:) = r(i,j,k,:) - L(:)*anint(( r(i,j,k,:) - &
                         r(i,j,1,:) )/L(:))
                 end if
+                ! Center of MAss Calc
                 r_cm(i,j,:) = r_cm(i,j,:)+r(i,j,k,:)*M(k)/MASS
             enddo
         enddo
@@ -130,6 +158,7 @@ Program msd_rot_calc
     enddo
     close(12)
 
+    ! Writes  config info to screen
     write(unit=output_unit,*) 'Trajectory Read Complete.\n'
     write(unit=output_unit,*) 'There are ', nconfigs, ' configurations.'
 
@@ -174,15 +203,23 @@ Program msd_rot_calc
             r_cm_old(:,:) = r_cm(it,:,:)
        enddo ! End t's loop (it)
     enddo ! End Time origin loop (i)
-    
-    ntos = (nconfigs-nt)/real(or_int)
-    write(*,*) ntos, nconfigs, nt, or_int
+    ! Calculates the number of time origins
+    ntos = (nconfigs - nt)/real(or_int)
+    ! Zeros arrays
     tmpmsd=0.0
     cm_tmpmsd=0.0
     bl_tmpmsd=0.0
     bl_cm_tmpmsd=0.0
-    open(20,file='msd_'//trim(mol_name)//'.dat') ! open MSD output file
-    open(21,file='cm_msd_'//trim(mol_name)//'.dat') ! open COM MSD output file
+    ! Sets the output file names
+    if ( needblock == .true.) then
+        open(20,file='msd_'//trim(mol_name)//'.dat') ! open MSD output file
+        open(21,file='cm_msd_'//trim(mol_name)//'.dat') ! open COM MSD output file
+    else
+        ! Opens the shamblock files instead
+        write(blstr,"(I0)") shamblock
+        open(20,file='msd_'//trim(mol_name)//'_'//trim(blstr)//'.dat') ! open MSD output file
+        open(21,file='cm_msd_'//trim(mol_name)//'_'//trim(blstr)//'.dat') ! open COM MSD output file
+    end if
     do it=1,nt
         do i=1, ntos
             do k=1,atms_per_mol
@@ -190,32 +227,41 @@ Program msd_rot_calc
             enddo
         cm_tmpmsd = cm_tmpmsd + msd_cm(i, it-1)
         enddo
-        do bl=1, nblocks
-            tospblock = ntos/nblocks
-            do i=bl*tospblock-tospblock+1, bl*tospblock+1
-                do k=1,atms_per_mol
-                    bl_tmpmsd(bl,k) = bl_tmpmsd(bl,k) + msd(i, it-1, k)
-                enddo
-                bl_cm_tmpmsd(bl) = bl_cm_tmpmsd(bl) + msd_cm(i,it-1)
-            enddo 
-        enddo
-        write(20,'(100f12.5)') real(it*dt), (tmpmsd(k)/real(nmols)/real(ntos), (bl_tmpmsd(bl,k)/real(nmols)/real(ntos)*nblocks, bl=1,nblocks), k=1,atms_per_mol)
-        write(21,'(100f12.5)') real(it*dt), cm_tmpmsd/real(nmols)/real(ntos), (bl_cm_tmpmsd(bl)/real(nmols)/real(ntos)*nblocks, bl=1,nblocks) 
+        ! If needs to block, calculates the block average
+        if (needblock == .true.) then
+            do bl=1, nblocks
+                tospblock = ntos/nblocks
+                do i=bl*tospblock-tospblock+1, bl*tospblock+1
+                    do k=1,atms_per_mol
+                        bl_tmpmsd(bl,k) = bl_tmpmsd(bl,k) + msd(i, it-1, k)
+                    enddo
+                    bl_cm_tmpmsd(bl) = bl_cm_tmpmsd(bl) + msd_cm(i,it-1)
+                enddo 
+            enddo
+        end if
+        if (needblock == .true.) then
+            ! writes files to the regular block files
+            write(20,'(100f12.5)') real(it*dt), (tmpmsd(k)/real(nmols)/real(ntos), &
+                (bl_tmpmsd(bl,k)/real(nmols)/real(ntos)*nblocks, bl=1,nblocks), k=1,atms_per_mol)
+            write(21,'(100f12.5)') real(it*dt), cm_tmpmsd/real(nmols)/real(ntos), &
+                (bl_cm_tmpmsd(bl)/real(nmols)/real(ntos)*nblocks, bl=1,nblocks) 
+        else
+            ! writes files to the shamblock files
+            write(20,'(100f12.5)') real(it*dt), (tmpmsd(k)/real(nmols)/real(ntos), k=1,atms_per_mol)
+            write(21,'(100f12.5)') real(it*dt), cm_tmpmsd/real(nmols)/real(ntos)
+        end if 
+        ! Zeros the total number of things
         do k=1,10
             tmpmsd(k) = 0.0
             bl_tmpmsd(:,k)=0.0
         enddo
+        ! Zeros the cm things
         cm_tmpmsd = 0.0
         bl_cm_tmpmsd(:)=0.0
     enddo
+    ! Closes the output files
     close(20)
     close(21)
-    
-
-                
-
-
-   
 
 
 

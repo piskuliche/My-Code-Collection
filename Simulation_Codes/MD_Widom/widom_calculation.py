@@ -44,7 +44,7 @@ def calc_muex_H(beta, numerator, denominator, nblocks, nsolv):
         ratio_bl = np.average(numerator[s:e])/np.average(denominator[s:e])
         rho = nsolv/np.average(denominator[s:e])
         bl_muex.append(-1/beta*np.log(ratio_bl))
-        bl_H.append(rho/beta*ratio_bl)
+        bl_H.append(rho*(1/beta)*np.exp(bl_muex[block]*beta))
     muex_error, H_error = np.std(bl_muex)*t_val/np.sqrt(nblocks-1), np.std(bl_H)*t_val/np.sqrt(nblocks-1)
     return muex, muex_error, H, H_error
 
