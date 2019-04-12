@@ -16,3 +16,5 @@ whatis("Description: This is a combination of my codes that I have written over 
 load( "python/2.7")
 
 prepend_path("PATH", "/home/e924p726/My-Code-Collection/bin/build/")
+
+family("codecol")

@@ -8,6 +8,18 @@ Once you run this code - you should submit run_windows.sh
 Then you should run Alan Grossfield's WHAM code.
 That can be downloaded at http://membrane.urmc.rochester.edu/content/wham
 Copyright July 2018 Zeke Piskulich, University of Kansas.
+
+Usage:
+    1) Choose # bins and force constants 0.005 for barrier and 0.001 long region is decent
+    2) python setup_wham.py 1 to generate wham_metadata.info and run wham file.
+    3) python setup_wham.py 2 to run cp2k wham or python setup_wham.py 3 to run lammps wham
+    4) sbatch run_windows.sh
+    5) bash conv.sh (if cp2k)
+    6) Run alan grossfield's wham code as needed
+    7) Conversion note: 1 kj/mol/Ang/Ang = 0.0085 hartree/bohr/bohr
+
+Cheers!
+
 """
 import os, shutil, sys
 import numpy as np
@@ -22,7 +34,7 @@ def generate_forceconsts():
         start = float(raw_input('What is the starting distance (in A)?'))
         end = float(raw_input('What is the ending distance (in A)?'))
         sep = end - start
-        kval = float(raw_input('What is the force constant?\n'))
+        kval = float(raw_input('What is the force constant (in hartree/bohr^2 aka cp2k internal)?\n'))
         for j in range(num_bins):
             ro = start+j*sep/float(num_bins)
             f.write('%s %s %s\n' % (prev_bins+1+j, kval, ro))
@@ -40,21 +52,24 @@ def setup_cp2k():
     meta = open('wham_metadata.info', 'w')
     sub = open('run_windows.sh','w')
 
-    sub.write('#MSUB -N wham_bin\n')
-    sub.write('#MSUB -q sixhour\n')
-    sub.write('#MSUB -j oe\n')
-    sub.write('#MSUB -d ./\n')
-    sub.write('#MSUB -l nodes=1:ppn=10:intel,mem=100gb,walltime=6:00:00\n')
-    sub.write('#MSUB -t 0-%s\n\n\n\n' % (bins))
+    sub.write('#!/bin/bash\n')
+    sub.write('#SBATCH --job-name=wham_bin\n')
+    sub.write('#SBATCH --partition=sixhour\n')
+    sub.write('#SBATCH --output=wham_bin-%A_%a.out\n')
+    sub.write('#SBATCH --nodes=1\n')
+    sub.write('#SBATCH --ntasks-per-node=10\n')
+    sub.write('#SBATCH --constraint=intel\n')
+    sub.write('#SBATCH --mem=50G\n')
+    sub.write('#SBATCH --time=06:00:00\n')
+    sub.write('#SBATCH --array 0-%s\n\n\n\n' % (bins))
 
     sub.write('module load cp2k/6.0/popt\n\n')
 
 
-    sub.write('cd $MOAB_JOBARRAYINDEX\n')
+    sub.write('cd $SLURM_ARRAY_TASK_ID\n')
     sub.write('mpirun -np 10 cp2k.popt inp_const.cp2k > run1.new\n')
     sub.write("sed 's/\([ \t]\+[^ \t]*\)\{3\}$//' out.colvar > lif.distance\n")
     sub.write("sed -i '1,20000 s/^/#/' lif.distance\n")
-    sub.write("python conv.py\n")
     sub.write('cd ../\n')
 
     for i in range(0,bins):
@@ -71,7 +86,7 @@ def setup_cp2k():
         f.write('\t&END COLLECTIVE\n')
         f.close()
         shutil.copyfile('inp_const.cp2k',str(i)+'/inp_const.cp2k')
-        shutil.copyfile('conv.py',str(i)+'/conv.py')
+        #shutil.copyfile('conv.py',str(i)+'/conv.py')
         # Outputs in angstrom, kcal/(mol*angstrom)
         meta.write('%s/output.distance %s %s\n' % (str(i), ro[i] , K[i]*2.0*conv))
         
