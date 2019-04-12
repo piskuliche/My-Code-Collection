@@ -33,11 +33,11 @@ Program msd_rot_calc
 
     character(len=10) nfile, mol_name
     character(len=2) ctmp
-    character(len=2) blstr
+    character(len=2) blstr, shamstr
 
     NAMELIST /nml/ nfile, nt, or_int, dt, mol_name,nblocks &
         startskip, endskip, startconfig, endconfig, L, nmols, &
-        needblock, shamblock
+        needblock
 
     ! Example defaults
     nfile           = "traj.xyz" ! Traj File Name
@@ -55,7 +55,7 @@ Program msd_rot_calc
     endskip         = 0          ! Lines to skip at end of frame
     nblocks         = 5          ! Default number of blocks
     needblock       = .true.     ! .true. turns on block averaging
-    shamblock       = 0          ! acts as the psuedoblock for block aving
+    shamblock       = 6          ! acts as the psuedoblock for block aving
     
     ! Namelist from standard input
     READ ( unit=input_unit, nml=nml, iostat=ioerr)
@@ -77,6 +77,7 @@ Program msd_rot_calc
     write( unit=output_unit, fmt='(a,t40,i15)' ) ' startskip is ', startskip
     write( unit=output_unit, fmt='(a,t40,i15)' ) ' endskip is ', endskip
     write( unit=output_unit, fmt='(a,t40,i15)' ) ' nblocks is ', nblocks
+    write( unit=output_unit, fmt='(a,t40,L)' ) ' blockav on is ', needblock
 
 
     open(11,file=trim(mol_name)//'.txt',status='old')
@@ -99,19 +100,25 @@ Program msd_rot_calc
     ! value based on which sham block is present
 
     if ( needblock == .false.) then
+        call getarg(1, shamstr)
+        read(shamstr,*) shamblock
+        write( unit=output_unit, fmt='(a,t40,i15)' ) ' shamblock is ', shamblock
         ! Ends program if shamblock larger than nblocks
         if (shamblock >= nblocks) then
             write(*,*) "Incorrect value for shamblock"
-            stop 0
+            write(*,*) "Usage: calc_msd.exe [shamblock] < foo.inp"
+            stop "Error in shamblock: inappropriate value"
         end if 
         ! Calculates number of configs per block
         nperblock   = nconfigs/nblocks
         ! Resets values of startconfig and end config
         startconfig = startconfig + shamblock*nperblock
-        endconfig   = startconfig + (shamblock+1)*nperblock
+        endconfig   = startconfig + nperblock
         ! Resets value of nconfigs
         nconfigs    = endconfig - startconfig
     end if
+    write(unit=output_unit, fmt='(a,t40,i15)' ) ' startconfig is ', startconfig
+    write(unit=output_unit, fmt='(a,t40,i15)' ) ' endconfig is ', endconfig
 
     ! Read the trajectory file
     open(12,file=trim(nfile),status='old') ! Open trajecotry file
