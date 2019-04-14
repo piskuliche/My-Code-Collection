@@ -4,7 +4,7 @@ Program msd_rot_calc
         error_unit, iostat_end, iostat_eor
     implicit none
     integer :: i, j, k, a, it, orig,bl
-    integer :: nt, or_int
+    integer :: nt, or_int, ind
     integer :: natms, nmols, atms_per_mol
     integer :: startskip, endskip, startconfig, endconfig, nconfigs, ntos
     integer :: nblocks, shamblock, nperblock
@@ -22,8 +22,8 @@ Program msd_rot_calc
     real, dimension(10) :: M, tmpmsd
     real, dimension(20) :: bl_cm_tmpmsd
     real, dimension(20,10) :: bl_tmpmsd
-    real, dimension(500000,1000,10,3) :: r
-    real, dimension(500000,1000,3) :: r_cm
+    real, dimension(100000,1000,10,3) :: r
+    real, dimension(100000,1000,3) :: r_cm
     real, dimension(1000,10,3) :: r_old, shift
     real, dimension(1000,3) :: r_cm_old, shift_cm
     real, dimension(1000,3) :: e1, e2, e1_zero, e2_zero
@@ -171,12 +171,15 @@ Program msd_rot_calc
 
     ! Loop over time origins
     counti = 0
+    ind = 0
+    !$OMP PARALLEL DO PRIVATE(r_old,r_cm_old,shift,shift_cm,dsq,ind)
     do i=1, nconfigs-nt, or_int
-        if(MOD(i*or_int,5000) == 0) then
-            write(*,*) 'Reached the ', i,'th time origin'
+        if(MOD(counti*or_int,500) == 0) then
+            write(*,*) 'Reached the ', counti*or_int,'th time origin'
         end if
         ! Set the Old Coordinates
         counti = counti + 1
+        ind = (i-1)/or_int + 1
         r_old(:,:,:) = r(i,:,:,:)
         r_cm_old(:,:) = r_cm(i,:,:)
         shift = 0.0
@@ -194,7 +197,7 @@ Program msd_rot_calc
                     dsq = ( r(it,j,k,1) + shift(j,k,1) - r(i,j,k,1) ) ** 2. &
                          +( r(it,j,k,2) + shift(j,k,2) - r(i,j,k,2) ) ** 2. &
                          +( r(it,j,k,3) + shift(j,k,3) - r(i,j,k,3) ) ** 2.
-                    msd(counti, it-1-i, k) = msd(counti, it-1-i, k) + dsq
+                    msd(ind, it-1-i, k) = msd(ind, it-1-i, k) + dsq
                     ! Calculate the contribution to the c1,c2
                 enddo ! End Atoms Loop (k)
                 ! Calculate the shift if it occurs.
@@ -204,12 +207,13 @@ Program msd_rot_calc
                 dsq = ( r_cm(it,j,1) + shift_cm(j,1) - r_cm(i,j,1) ) ** 2. &
                     +( r_cm(it,j,2) + shift_cm(j,2) - r_cm(i,j,2) ) ** 2. &
                     +( r_cm(it,j,3) + shift_cm(j,3) - r_cm(i,j,3) ) ** 2.
-                msd_cm(counti,it-1-i) = msd_cm(counti, it-1-i) + dsq
+                msd_cm(ind,it-1-i) = msd_cm(ind, it-1-i) + dsq
             enddo ! End Molecules Loop (j)
             r_old(:,:,:) = r(it,:,:,:)
             r_cm_old(:,:) = r_cm(it,:,:)
        enddo ! End t's loop (it)
-    enddo ! End Time origin loop (i)
+    enddo 
+    !$OMP END PARALLEL DO
     ! Calculates the number of time origins
     ntos = (nconfigs - nt)/real(or_int)
     ! Zeros arrays
