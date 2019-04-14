@@ -172,7 +172,8 @@ Program msd_rot_calc
     ! Loop over time origins
     counti = 0
     ind = 0
-    !$OMP PARALLEL DO PRIVATE(i,j,k,it,r_old,r_cm_old,shift,shift_cm,dsq,ind)
+    !$OMP PARALLEL DO schedule(static) PRIVATE(i,j,k,it,r_old,r_cm_old,shift,shift_cm,dsq,ind) &
+    !$OMP& SHARED(msd,msd_cm)
     do i=1, nconfigs-nt, or_int
         if(MOD(counti*or_int,500) == 0) then
             write(*,*) 'Reached the ', counti*or_int,'th time origin'
