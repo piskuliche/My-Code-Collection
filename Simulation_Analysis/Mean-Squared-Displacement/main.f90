@@ -170,16 +170,11 @@ Program msd_rot_calc
     write(unit=output_unit,*) 'There are ', nconfigs, ' configurations.'
 
     ! Loop over time origins
-    counti = 0
     ind = 0
-    !$OMP PARALLEL DO schedule(static) PRIVATE(i,j,k,it,r_old,r_cm_old,shift,shift_cm,dsq,ind) &
-    !$OMP&  REDUCTION(+:msd,msd_cm)
+    !$OMP PARALLEL DO schedule(static) DEFAULT(NONE) PRIVATE(i,j,k,it,r_old,r_cm_old,shift,shift_cm,dsq,ind) &
+    !$OMP& SHARED(nconfigs,nt,or_int,atms_per_mol,L,r,r_cm,nmols) REDUCTION(+:msd,msd_cm)
     do i=1, nconfigs-nt, or_int
-        if(MOD(counti*or_int,500) == 0) then
-            write(*,*) 'Reached the ', counti*or_int,'th time origin'
-        end if
         ! Set the Old Coordinates
-        counti = counti + 1
         ind = (i-1)/or_int + 1
         r_old(:,:,:) = r(i,:,:,:)
         r_cm_old(:,:) = r_cm(i,:,:)
