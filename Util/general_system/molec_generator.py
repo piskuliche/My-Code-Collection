@@ -376,6 +376,7 @@ def write_molec_py(infile,outfile,molname):
 if __name__ == '__main__':
     import sys
     import numpy as np
+    import os
 
     # Read command line input
     if len(sys.argv) == 4:

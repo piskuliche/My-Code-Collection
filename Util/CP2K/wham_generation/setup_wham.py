@@ -69,7 +69,6 @@ def setup_cp2k():
     sub.write('cd $SLURM_ARRAY_TASK_ID\n')
     sub.write('mpirun -np 10 cp2k.popt inp_const.cp2k > run1.new\n')
     sub.write("sed 's/\([ \t]\+[^ \t]*\)\{3\}$//' out.colvar > lif.distance\n")
-    sub.write("sed -i '1,20000 s/^/#/' lif.distance\n")
     sub.write('cd ../\n')
 
     for i in range(0,bins):
@@ -115,7 +114,6 @@ def setup_lmps():
     sub.write('cd $MOAB_JOBARRAYINDEX\n')
     sub.write('mpirun lmp_mpi <in.ip \n')
     sub.write("sed -e '/TIMESTEP/,+8d' tmp.dump > lif.distance\n")
-    sub.write("sed -i '1,20000 s/^/#/' lif.distance\n")
     sub.write('cd ../\n')
 
     for i in range(0,bins):
@@ -131,16 +129,29 @@ def setup_lmps():
     meta.close()
     sub.close
 
+if __name__ == "__main__":
+    # runs and chooses the program.
+    if len(sys.argv) == 1:
+        print("Usage: python setup_wham.py -type [1,2 or 3] ")
+        sys.exit("For more information run program with '-h' option")
+    if "-h" in sys.argv:
+        print("Usage: python setup_wham.py -type [name] ")
+        print("This code sets up the wham calculation and sets the force constants for each window.")
+        print("type: 1) generate force constants, 2) cp2k setup, 3) lammps setup")
+        print("Note run 1 then 2 or 1 then 3 not 1 2 3.")
+        sys.exit("Exiting")
+    if "-type" in sys.argv:
+        index = sys.argv.index("-type")+1
+        type = int(sys.argv[index])
+    else:
+        sys.exit("type must be specified")
 
-# runs and chooses the program.
-type = int(sys.argv[1])
-
-if type == 1:
-    generate_forceconsts()
-elif type == 2:
-    setup_cp2k()
-elif type == 3:
-    setup_lmps()
-else:
-    print("Invalid options chosen - try again")
+    if type == 1:
+        generate_forceconsts()
+    elif type == 2:
+        setup_cp2k()
+    elif type == 3:
+        setup_lmps()
+    else:
+        print("Invalid options chosen - try again")
 

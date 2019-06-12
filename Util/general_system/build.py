@@ -262,9 +262,9 @@ def write_lammps_paircoeffs():
         a, indices = np.unique(ATMS[i]["atype"], return_index = True)
         for j in indices:
             if fftype[i] == "rmin":
-                    lmps.write("pair_coeff %s %s %9.3f %9.3f\n" % (ATMS[i]["atype"][j]+start,ATMS[i]["atype"][j]+start, ATMS[i]["eps"][j]*conv_energy[i], ATMS[i]["rmin"][j]/(2**(1/6.))))
+                    lmps.write("pair_coeff %s %s %9.5f %9.5f\n" % (ATMS[i]["atype"][j]+start,ATMS[i]["atype"][j]+start, ATMS[i]["eps"][j]*conv_energy[i], ATMS[i]["rmin"][j]/(2**(1/6.))))
             elif fftype[i] == "lj":
-                    lmps.write("pair_coeff %s %s %9.3f %9.3f\n" % (ATMS[i]["atype"][j]+start,ATMS[i]["atype"][j]+start, ATMS[i]["eps"][j]*conv_energy[i], ATMS[i]["sig"][j]))
+                    lmps.write("pair_coeff %s %s %9.5f %9.5f\n" % (ATMS[i]["atype"][j]+start,ATMS[i]["atype"][j]+start, ATMS[i]["eps"][j]*conv_energy[i], ATMS[i]["sig"][j]))
             else:
                 print("Unrecognized force field type.")
                 
@@ -299,7 +299,7 @@ def write_lammps_anglecoeffs():
         lmps.write("# Angle Coeffs Species %s\n" % i)
         for angle in ANGS[i]['name']:
             if ANGS[i][angle][0]+start not in usedtyps:
-                lmps.write("angle_coeff %s %9.3f %9.3f\n" % (ANGS[i][angle][0]+start, ANGS[i][angle][1]*conv_force[i], ANGS[i][angle][2]))
+                lmps.write("angle_coeff %s %9.5f %9.5f\n" % (ANGS[i][angle][0]+start, ANGS[i][angle][1]*conv_force[i], ANGS[i][angle][2]))
                 usedtyps.append(ANGS[i][angle][0]+start)
         if usedtyps:
             start = max(usedtyps)
@@ -316,7 +316,7 @@ def write_lammps_dihedralcoeffs():
         lmps.write("# Dihedral Coeffs Species %s\n" % i)
         for dihedral in DIHS[i]['name']:
             if DIHS[i][dihedral][0]+start not in usedtyps:
-                lmps.write("dihedral_coeff %s %9.3f %s %d 0.0\n" % (DIHS[i][dihedral][0]+start, DIHS[i][dihedral][1]*conv_force[i], DIHS[i][dihedral][2], DIHS[i][dihedral][3]))
+                lmps.write("dihedral_coeff %s %9.5f %s %d 0.0\n" % (DIHS[i][dihedral][0]+start, DIHS[i][dihedral][1]*conv_force[i], DIHS[i][dihedral][2], DIHS[i][dihedral][3]))
                 usedtyps.append(DIHS[i][dihedral][0]+start)
         if usedtyps:
             start = max(usedtyps)
@@ -333,7 +333,7 @@ def write_lammps_impropercoeffs():
         lmps.write("# Improper Coeffs Species %s\n" % i)
         for improper in IMPS[i]['name']:
             if IMPS[i][improper][0]+start not in usedtyps:
-                lmps.write("improper_coeff %s %9.3f %9.3f\n" % (IMPS[i][improper][0]+start, IMPS[i][improper][1]*conv_force[i], IMPS[i][improper][2]))
+                lmps.write("improper_coeff %s %9.5f %9.5f\n" % (IMPS[i][improper][0]+start, IMPS[i][improper][1]*conv_force[i], IMPS[i][improper][2]))
                 usedtyps.append(IMPS[i][improper][0]+start)
         if usedtyps:
             start = max(usedtyps)

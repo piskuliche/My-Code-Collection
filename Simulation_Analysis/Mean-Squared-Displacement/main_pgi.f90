@@ -35,7 +35,7 @@ Program msd_rot_calc
     character(len=2) ctmp
     character(len=2) blstr, shamstr
 
-    NAMELIST /nml/ nfile, nt, or_int, dt, mol_name,nblocks &
+    NAMELIST /nml/ nfile, nt, or_int, dt, mol_name,nblocks, &
         startskip, endskip, startconfig, endconfig, L, nmols, &
         needblock
 
@@ -79,7 +79,8 @@ Program msd_rot_calc
     write( unit=output_unit, fmt='(a,t40,i15)' ) ' nblocks is ', nblocks
     write( unit=output_unit, fmt='(a,t40,L)' ) ' blockav on is ', needblock
 
-
+    M = 0.0
+    MASS = 0.0
     open(11,file=trim(mol_name)//'.txt',status='old')
     read(11,*) atms_per_mol
     read(11,*) msdindex
@@ -138,7 +139,8 @@ Program msd_rot_calc
             read(12,*)
         enddo
     enddo
-    
+    r_cm = 0.0
+    r = 0.0
     ! This reads nconfigs frames
     do i=1, nconfigs
         if (MOD(i,5000) == 0) then
@@ -171,6 +173,8 @@ Program msd_rot_calc
 
     ! Loop over time origins
     ind = 0
+    msd=0.0
+    msd_cm=0.0
     !$OMP PARALLEL DO schedule(static) DEFAULT(NONE) PRIVATE(i,j,k,it,r_old,r_cm_old,shift,shift_cm,dsq,ind) &
     !$OMP& SHARED(nconfigs,nt,or_int,atms_per_mol,L,r,r_cm,nmols) REDUCTION(+:msd,msd_cm)
     do i=1, nconfigs-nt, or_int
@@ -203,7 +207,7 @@ Program msd_rot_calc
                 dsq = ( r_cm(it,j,1) + shift_cm(j,1) - r_cm(i,j,1) ) ** 2. &
                     +( r_cm(it,j,2) + shift_cm(j,2) - r_cm(i,j,2) ) ** 2. &
                     +( r_cm(it,j,3) + shift_cm(j,3) - r_cm(i,j,3) ) ** 2.
-                msd_cm(ind,it-1-i) = msd_cm(ind, it-1-i) + dsq
+                msd_cm(ind,it-1-i) = msd_cm(ind,it-1-i) + dsq
             enddo ! End Molecules Loop (j)
             r_old(:,:,:) = r(it,:,:,:)
             r_cm_old(:,:) = r_cm(it,:,:)
