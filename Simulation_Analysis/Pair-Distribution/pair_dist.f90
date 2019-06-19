@@ -13,24 +13,26 @@ Program pairdist
       integer :: ioerr
 
       real :: dr, L, rij_sq, pi
-      real :: rho, const, r_hi, r_lo
+      real :: rho, const, r_hi, r_lo,ctmp
       real, dimension(3) :: rtmp, rij
-      real, allocatable :: typ(:), h_id(:), tot_gofr(:), bl_gofr(:)
+      real, allocatable ::  h_id(:), tot_gofr(:), bl_gofr(:)
       real, allocatable :: r1(:,:,:), r2(:,:,:)
       real, allocatable :: g(:,:)
+      integer, allocatable :: typ(:), mol(:), mol1(:), mol2(:)
       integer, allocatable :: h(:,:)
 
       
-      character(len=10) :: nfile
-      character(len=6) :: censtr, outstr
+      character(len=12) :: nfile, molfile
+      character(len=6) :: censtr, outstr,blstr
       
       pi = 3.14159
       
       NAMELIST /nml/ nfile, dr, startconfig, endconfig, startskip, endskip,&
-      nblocks, selec1, selec2, L, or_int, natoms
+      nblocks, selec1, selec2, L, or_int, natoms, molfile
 
       ! Example Defaults
       nfile             = "traj.xyz"    ! Trajectory File Name
+      molfile           = "molinfo.dat" ! Identifies molecules
       L                 = 34.0          ! Simulation box length (angstrom)
       natoms            = 1000          ! Number of Atoms
       startconfig       = 0             ! Starting Configuration (Frame)
@@ -56,6 +58,7 @@ Program pairdist
       write(*,*) 'Input Details'
       write(*,*) '*************'
       write(*,*) 'nfile: ', nfile
+      write(*,*) 'molfile: ', molfile
       write(*,*) 'L: ', L
       write(*,*) 'natoms: ', natoms
       write(*,*) 'startconfig: ', startconfig
@@ -66,8 +69,9 @@ Program pairdist
       write(*,*) 'nblocks: ', nblocks
       write(*,*) 'selec1: ', selec1
       write(*,*) 'selec2: ', selec2
+      write(*,*) 'dr: ', dr
       write(*,*) '*************'
-      
+    
       ! Set coords and bins
       dr = dr / L
       nb = FLOOR( 0.5/dr ) ! half box units
@@ -77,31 +81,33 @@ Program pairdist
       write(*,*) "This will average over ", rconfigs, " configurations"
       write(*,*) "Opening ", nfile
       n1 = 0; n2 = 0
-      ! read 1 frame and calc n1, n2
-      open(19, file=trim(nfile), status='old')
-      do j=1, startskip
-        read(19,*)
-      enddo
+      ! Reads in the molecule info
+      allocate(typ(natoms),mol(natoms))
+      mol = 0; typ = 0
+      open(20, file=trim(molfile), status='old')
       do j=1, natoms
-        read(19,*) tmp, (rtmp(a), a=1,3)
-        if (tmp == selec1) then
+        read(20,*) ctmp, mol(j), typ(j), ctmp
+        if (typ(j) == selec1) then
             n1 = n1 + 1
-        else if (tmp == selec2) then
+        else if (typ(j) == selec2) then
             n2 = n2 + 1
         end if
       enddo
       if (selec1 == selec2) then
           n2 = n1
       end if
-      close(19)
+      close(20)
+
       write(*,*) "There are ",n1, " of selection 1"
       write(*,*) "There are ",n2, " of selection 2" 
       ! Allocate Arrays
-      allocate(typ(natoms))
+      allocate(mol1(n1),mol2(n2))
       allocate(h_id(nb))
       allocate(h(rconfigs,nb), g(rconfigs,nb))
       allocate(r1(rconfigs,n1,3), r2(rconfigs,n2,3))
-      allocate(tot_gofr(nb))
+      allocate(tot_gofr(nb),bl_gofr(nb))
+      mol1 = 0; mol2 = 0
+
 
       ! Calculations of ideal
       r_lo = 0.0; r_hi = 0.0; h_id = 0.0
@@ -142,19 +148,22 @@ Program pairdist
                 read(12,*)
             enddo
             do j=1,natoms
-                read(12,*) typ(j), (rtmp(a), a=1,3)
+                read(12,*) ctmp, (rtmp(a), a=1,3)
                 ! Creates arrays of coordinates (in box coords)
                 if (typ(j) == selec1) then
                     r1(cnt,cnt1,:) = rtmp(:)/L
+                    mol1(cnt1) = mol(j)
                     ! Checks if selec1 and selec2 are the same
                     if(selec2 == selec1) then
                         r2(cnt,cnt1,:) = rtmp(:)/L
+                        mol2(cnt1) = mol(j)
                     endif
                     cnt1 = cnt1 + 1
                 ! Note - this will never happen if selec1 and selec2 are
                 ! equivalent, as that is handeled previously.
                 else if (typ(j) == selec2) then
                     r2(cnt,cnt2,:) = rtmp(:)/L
+                    mol2(cnt2) = mol(j)
                     cnt2 = cnt2 + 1
                 end if
             enddo
@@ -177,20 +186,24 @@ Program pairdist
         do j=1, n1
             if (selec1 /= selec2) then
                 do k=1, n2
-                    rij(:)      = r1(i,j,:) - r2(i,k,:)
-                    rij(:)      = rij(:) - ANINT( rij(:) )
-                    rij_sq      = SUM( rij**2 )
-                    b           = FLOOR( SQRT( rij_sq ) / dr ) + 1
-                    IF ( b <= nb ) h(i,b) = h(i,b) + 1
+                    if (mol1(j) /= mol2(k)) then
+                        rij(:)      = r1(i,j,:) - r2(i,k,:)
+                        rij(:)      = rij(:) - ANINT( rij(:) )
+                        rij_sq      = SUM( rij**2 )
+                        b           = FLOOR( SQRT( rij_sq ) / dr ) + 1
+                        if ( b <= nb ) h(i,b) = h(i,b) + 1
+                    endif
                 enddo
             else
                 if (j /= n1) then
                     do k=j+1, n1
-                        rij(:)  = r1(i,j,:) - r2(i,k,:)
-                        rij(:)  = rij(:) - ANINT( rij(:) )
-                        rij_sq  = SUM( rij**2 )
-                        b       = FLOOR( SQRT( rij_sq ) / dr ) + 1
-                        IF ( b <= nb ) h(i,b) = h(i,b) + 2
+                        if (mol1(j) /= mol2(k)) then
+                            rij(:)  = r1(i,j,:) - r2(i,k,:)
+                            rij(:)  = rij(:) - ANINT( rij(:) )
+                            rij_sq  = SUM( rij**2 )
+                            b       = FLOOR( SQRT( rij_sq ) / dr ) + 1
+                            IF ( b <= nb ) h(i,b) = h(i,b) + 2
+                        endif
                     enddo
                 end if
             end if
@@ -201,6 +214,8 @@ Program pairdist
       enddo
       !$OMP END PARALLEL DO
       write(*,*) "Tidying things up!"
+      write(censtr, "(I0)") selec1
+      write(outstr, "(I0)") selec2
       ! Total calculation
       do i=1, rconfigs
         do b=1,nb
@@ -209,14 +224,29 @@ Program pairdist
       enddo
       tot_gofr(:) = tot_gofr(:)/rconfigs
       ! Block calculation
+      write(*,*) "Jiggying up blocks!"
+      do j=1, nblocks
+        bl_gofr=0.0
+        do i=1,rconfigs/nblocks
+            k=(j-1)*rconfigs/nblocks+i
+            do b=1,nb
+                bl_gofr(b) = bl_gofr(b) + g(k,b)
+            enddo
+        enddo
+        bl_gofr(:)=bl_gofr(:)/(rconfigs/nblocks)
+        write(blstr, "(I0)") j
+        open(22+j,file='bl_'//trim(blstr)//'_pairdist_'//trim(censtr)//'_'//trim(outstr)//'.dat')
+        do b=1,nb
+            write(22+j,'(2f15.8)' ) (REAL(b)-0.5)*dr, bl_gofr(b)
+        enddo
+      enddo
+
 
       ! Convert out of box units
       dr = dr*L
       
       write(*,*) "Converted back to original coordinates"
       ! Output to file
-      write(censtr, "(I0)") selec1
-      write(outstr, "(I0)") selec2
       write( *,* ) 'Outputing to output file'
       open(13, file='pairdist_'//trim(censtr)//'_'//trim(outstr)//'.dat')
       do b=1, nb
