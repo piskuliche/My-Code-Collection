@@ -10,25 +10,38 @@ Program pairdist
       integer :: nconfigs, startconfig, endconfig, rconfigs
       integer :: startskip, endskip
       integer :: natoms, or_int, nblocks
-      integer :: ioerr
+      integer :: ioerr, eweight
 
       real :: dr, L, rij_sq, pi
       real :: rho, const, r_hi, r_lo,ctmp
+      real :: eavg
       real, dimension(3) :: rtmp, rij
       real, allocatable ::  h_id(:), tot_gofr(:), bl_gofr(:)
+      real, allocatable :: tot_egofr(:), bl_egofr(:), en(:)
       real, allocatable :: r1(:,:,:), r2(:,:,:)
-      real, allocatable :: g(:,:)
+      real, allocatable :: g(:,:), eg(:,:)
       integer, allocatable :: typ(:), mol(:), mol1(:), mol2(:)
       integer, allocatable :: h(:,:)
 
       
-      character(len=12) :: nfile, molfile
+      character(len=12) :: nfile, molfile, efile
       character(len=6) :: censtr, outstr,blstr
       
+        
+      ! Files Used:
+      ! 11    Input: molfile
+      ! 12    Input: nfile
+      ! 13    Input: energies
+      ! 20    Output: tot_gofr
+      ! 21-41 Output: block gofr
+      ! 42    Output: e_gofr
+      ! 43-53 Output: block e_gofr
+
+
       pi = 3.14159
       
       NAMELIST /nml/ nfile, dr, startconfig, endconfig, startskip, endskip,&
-      nblocks, selec1, selec2, L, or_int, natoms, molfile
+      nblocks, selec1, selec2, L, or_int, natoms, molfile, eweight, efile
 
       ! Example Defaults
       nfile             = "traj.xyz"    ! Trajectory File Name
@@ -44,6 +57,8 @@ Program pairdist
       selec1            = 1             ! Atom Type 1 for GofR
       selec2            = 1             ! Atom Type 2 for GofR
       dr                = 0.1           ! Shell distance
+      eweight           = 0             ! Weight by energies [0] off [1] on 
+      efile             = "e_init.out"  ! Energy Weight File
       
       ! Reads the namelist from standard input
       read ( unit=input_unit, nml=nml, iostat=ioerr)
@@ -82,11 +97,13 @@ Program pairdist
       write(*,*) "Opening ", nfile
       n1 = 0; n2 = 0
       ! Reads in the molecule info
+      ! Sets the number of selec1 as n1
+      ! Sets the number of selec2 as n2
       allocate(typ(natoms),mol(natoms))
       mol = 0; typ = 0
-      open(20, file=trim(molfile), status='old')
+      open(11, file=trim(molfile), status='old')
       do j=1, natoms
-        read(20,*) ctmp, mol(j), typ(j), ctmp
+        read(11,*) ctmp, mol(j), typ(j), ctmp
         if (typ(j) == selec1) then
             n1 = n1 + 1
         else if (typ(j) == selec2) then
@@ -96,16 +113,24 @@ Program pairdist
       if (selec1 == selec2) then
           n2 = n1
       end if
-      close(20)
-
+      close(11)
       write(*,*) "There are ",n1, " of selection 1"
       write(*,*) "There are ",n2, " of selection 2" 
-      ! Allocate Arrays
-      allocate(mol1(n1),mol2(n2))
-      allocate(h_id(nb))
-      allocate(h(rconfigs,nb), g(rconfigs,nb))
-      allocate(r1(rconfigs,n1,3), r2(rconfigs,n2,3))
-      allocate(tot_gofr(nb),bl_gofr(nb))
+
+      ! Allocate GofRArrays
+      allocate(mol1(n1),mol2(n2)) ! Molecular Storage
+      allocate(h_id(nb))          ! Ideal Result Storage
+      allocate(h(rconfigs,nb), g(rconfigs,nb)) ! h and g arrays
+      allocate(r1(rconfigs,n1,3), r2(rconfigs,n2,3)) ! coord arrays
+      allocate(tot_gofr(nb),bl_gofr(nb)) ! gofr arrays
+      ! Allocate Energy Fluctuations Arrays
+      if (eweight == 1) then
+        allocate(en(rconfigs))
+        allocate(eg(rconfigs,nb)) ! eg array
+        allocate(tot_egofr(nb), bl_egofr(nb)) ! Energy Flucts GofR
+        en = 0.0; eg = 0.0; tot_egofr=0.0; bl_egofr=0.0
+      endif
+
       mol1 = 0; mol2 = 0
 
 
@@ -124,8 +149,10 @@ Program pairdist
       h = 0; r1 = 0.0; r2 = 0.0; g = 0.0
       rij = 0.0; rij_sq = 0.0; tot_gofr=0.0
 
-      ! Reads the trajectory file 
+      ! Reads the trajectory file (and energy file)
       open(12, file=trim(nfile), status='old')
+      if (eweight == 1) open(13, file=trim(efile), status='old')
+
       write( unit=output_unit, *) 'Reading file ', trim(nfile)
       do i=1, startconfig
         do j=1, startskip
@@ -144,6 +171,7 @@ Program pairdist
         if (MOD(i-1,or_int) == 0) then
             cnt = cnt + 1
             cnt1 = 1; cnt2 = 1
+            if (eweight == 1) read(13,*) en(cnt) ! Reads in Energies
             do j=1, startskip
                 read(12,*)
             enddo
@@ -177,6 +205,8 @@ Program pairdist
         end if
       enddo
       close(12)
+      if (eweight == 1) close(13)
+      if (eweight == 1) eavg = SUM(en)/rconfigs
       write(*,*) "Calculating GofR"
       ! Loop over configurations
       !$OMP PARALLEL DO schedule(static) DEFAULT(NONE) &
@@ -209,8 +239,9 @@ Program pairdist
             end if
         enddo
         ! Final Calculations
-        g(i,:) = REAL( h(i,:) ) / REAL( n1 )
-        g(i,:) = g(i,:) / h_id(:)
+        g(i,:) = REAL( h(i,:) ) / REAL( n1 ) ! Norm by number of n1
+        g(i,:) = g(i,:) / h_id(:) ! Normalize based on ideal result
+        if (eweight == 1) eg(i,:) = en(i) * g(i,:) ! Weight by energies
       enddo
       !$OMP END PARALLEL DO
       write(*,*) "Tidying things up!"
@@ -220,9 +251,11 @@ Program pairdist
       do i=1, rconfigs
         do b=1,nb
             tot_gofr(b) = tot_gofr(b) + g(i,b)
+            if (eweight == 1) tot_egofr(b) = tot_egofr(b) + eg(i,b)
         enddo
       enddo
       tot_gofr(:) = tot_gofr(:)/rconfigs
+      if (eweight == 1) tot_egofr(:) = tot_egofr(:)/rconfigs - eavg*tot_gofr(:)
       ! Block calculation
       write(*,*) "Jiggying up blocks!"
       do j=1, nblocks
@@ -231,14 +264,24 @@ Program pairdist
             k=(j-1)*rconfigs/nblocks+i
             do b=1,nb
                 bl_gofr(b) = bl_gofr(b) + g(k,b)
+                if (eweight == 1) bl_egofr(b) = bl_egofr(b) + eg(k,b)
             enddo
         enddo
         bl_gofr(:)=bl_gofr(:)/(rconfigs/nblocks)
+        if (eweight == 1) bl_egofr(:)=bl_egofr(:)/(rconfigs/nblocks)
         write(blstr, "(I0)") j
-        open(22+j,file='bl_'//trim(blstr)//'_pairdist_'//trim(censtr)//'_'//trim(outstr)//'.dat')
+        open(20+j,file='bl_'//trim(blstr)//'_pairdist_'//trim(censtr)//'_'//trim(outstr)//'.dat')
+        if (eweight == 1) then
+            open(42+j,file='bl_'//trim(blstr)//'_epairdist_'//trim(censtr)//'_'//trim(outstr)//'.dat')
+        endif
         do b=1,nb
-            write(22+j,'(2f15.8)' ) (REAL(b)-0.5)*dr, bl_gofr(b)
+            write(20+j,'(2f15.8)' ) (REAL(b)-0.5)*dr, bl_gofr(b)
+            if (eweight == 1) then
+                write(42+j,'(2f15.8)' ) (REAL(b)-0.5)*dr, bl_egofr(b)
+            endif
         enddo
+        close(20+j)
+        if (eweight == 1) close(42+j)
       enddo
 
 
@@ -248,12 +291,16 @@ Program pairdist
       write(*,*) "Converted back to original coordinates"
       ! Output to file
       write( *,* ) 'Outputing to output file'
-      open(13, file='pairdist_'//trim(censtr)//'_'//trim(outstr)//'.dat')
+      open(20, file='pairdist_'//trim(censtr)//'_'//trim(outstr)//'.dat')
+      if (eweight == 1) open(42,file='epairdist_'//trim(censtr)//'_'//trim(outstr)//'.dat')
       do b=1, nb
-        write(13,'(2f15.8)' ) (REAL(b)-0.5)*dr, tot_gofr(b)
+        write(20,'(1f8.4,5x,1e15.6)' ) (REAL(b)-0.5)*dr, tot_gofr(b)
+        if (eweight == 1) write(42,'(1f8.4,5x,1e15.6)' ) (REAL(b)-0.5)*dr, tot_egofr(b)
       enddo
-      close(13)
+      close(20)
+      if (eweight == 1) close(42)
       write(*,*) "GofR Calculation Complete"
+      if (eweight == 1) write(*,*) "Weighted GofR Calculation Complete"
      
 
 
