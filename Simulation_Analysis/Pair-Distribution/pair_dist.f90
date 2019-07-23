@@ -14,18 +14,20 @@ Program pairdist
 
       real :: dr, L, rij_sq, pi
       real :: rho, const, r_hi, r_lo,ctmp
-      real :: eavg
+      real*8 :: eavg
       real, dimension(3) :: rtmp, rij
+      real*8, allocatable :: eavgbl(:)
       real, allocatable ::  h_id(:), tot_gofr(:), bl_gofr(:)
-      real, allocatable :: tot_egofr(:), bl_egofr(:), en(:)
+      real*8, allocatable :: tot_egofr(:), bl_egofr(:), en(:)
       real, allocatable :: r1(:,:,:), r2(:,:,:)
       real, allocatable :: g(:,:), eg(:,:)
       integer, allocatable :: typ(:), mol(:), mol1(:), mol2(:)
       integer, allocatable :: h(:,:)
 
       
-      character(len=12) :: nfile, molfile, efile
+      character(len=20) :: nfile, molfile, efile
       character(len=6) :: censtr, outstr,blstr
+      character(len=6) :: etype
       
         
       ! Files Used:
@@ -41,7 +43,7 @@ Program pairdist
       pi = 3.14159
       
       NAMELIST /nml/ nfile, dr, startconfig, endconfig, startskip, endskip,&
-      nblocks, selec1, selec2, L, or_int, natoms, molfile, eweight, efile
+      nblocks, selec1, selec2, L, or_int, natoms, molfile, eweight, efile, etype
 
       ! Example Defaults
       nfile             = "traj.xyz"    ! Trajectory File Name
@@ -59,6 +61,8 @@ Program pairdist
       dr                = 0.1           ! Shell distance
       eweight           = 0             ! Weight by energies [0] off [1] on 
       efile             = "e_init.out"  ! Energy Weight File
+      etype             = "e"           !
+
       
       ! Reads the namelist from standard input
       read ( unit=input_unit, nml=nml, iostat=ioerr)
@@ -123,6 +127,7 @@ Program pairdist
       allocate(h(rconfigs,nb), g(rconfigs,nb)) ! h and g arrays
       allocate(r1(rconfigs,n1,3), r2(rconfigs,n2,3)) ! coord arrays
       allocate(tot_gofr(nb),bl_gofr(nb)) ! gofr arrays
+      allocate(eavgbl(nblocks)) ! block energy array
       ! Allocate Energy Fluctuations Arrays
       if (eweight == 1) then
         allocate(en(rconfigs))
@@ -172,6 +177,7 @@ Program pairdist
             cnt = cnt + 1
             cnt1 = 1; cnt2 = 1
             if (eweight == 1) read(13,*) en(cnt) ! Reads in Energies
+            if (eweight == 1) eavg = eavg + en(cnt)
             do j=1, startskip
                 read(12,*)
             enddo
@@ -196,6 +202,7 @@ Program pairdist
                 end if
             enddo
         else
+            read(13,*)
             do j=1, startskip
                 read(12,*)
             enddo
@@ -206,7 +213,19 @@ Program pairdist
       enddo
       close(12)
       if (eweight == 1) close(13)
-      if (eweight == 1) eavg = SUM(en)/rconfigs
+      if (eweight == 1) eavg = eavg/rconfigs
+      if (eweight == 1)write(*,*) 'total average energy is ',eavg
+      eavgbl=0.0
+      if (eweight == 1) then
+          do j=1,nblocks
+            do i=1,rconfigs/nblocks
+                k=(j-1)*rconfigs/nblocks+i
+                eavgbl(j) = eavgbl(j) + en(k)
+            end do
+            eavgbl(j) = eavgbl(j)/(rconfigs/nblocks)
+            write(*,*) 'block ',j,' average energy is ', eavgbl(j)
+          enddo
+      endif
       write(*,*) "Calculating GofR"
       ! Loop over configurations
       !$OMP PARALLEL DO schedule(static) DEFAULT(NONE) &
@@ -250,34 +269,36 @@ Program pairdist
       ! Total calculation
       do i=1, rconfigs
         do b=1,nb
-            tot_gofr(b) = tot_gofr(b) + g(i,b)
-            if (eweight == 1) tot_egofr(b) = tot_egofr(b) + eg(i,b)
+            tot_gofr(b) = tot_gofr(b) + g(i,b)/rconfigs
+            if (eweight == 1) tot_egofr(b) = tot_egofr(b) + (eg(i,b)-eavg*g(i,b))/rconfigs
         enddo
       enddo
-      tot_gofr(:) = tot_gofr(:)/rconfigs
-      if (eweight == 1) tot_egofr(:) = tot_egofr(:)/rconfigs - eavg*tot_gofr(:)
+      !tot_gofr(:) =dd tot_gofr(:)/rconfigs 
+      !if (eweight == 1) tot_egofr(:) = tot_egofr(:)/rconfigs - eavg*tot_gofr(:)
       ! Block calculation
       write(*,*) "Jiggying up blocks!"
       do j=1, nblocks
         bl_gofr=0.0
+        if (eweight == 1) bl_egofr=0.0
         do i=1,rconfigs/nblocks
             k=(j-1)*rconfigs/nblocks+i
             do b=1,nb
-                bl_gofr(b) = bl_gofr(b) + g(k,b)
-                if (eweight == 1) bl_egofr(b) = bl_egofr(b) + eg(k,b)
+                bl_gofr(b) = bl_gofr(b) + g(k,b)/(rconfigs/nblocks)
+                if (eweight == 1) bl_egofr(b) = bl_egofr(b) &
+                    +(eg(k,b)-eavgbl(j)*g(k,b))/(rconfigs/nblocks)
             enddo
         enddo
-        bl_gofr(:)=bl_gofr(:)/(rconfigs/nblocks)
-        if (eweight == 1) bl_egofr(:)=bl_egofr(:)/(rconfigs/nblocks)
+        !bl_gofr(:)=bl_gofr(:)/(rconfigs/nblocks)
+        !if (eweight == 1) bl_egofr(:)=bl_egofr(:)/(rconfigs/nblocks) - eavgbl(j)*bl_gofr(:)
         write(blstr, "(I0)") j
         open(20+j,file='bl_'//trim(blstr)//'_pairdist_'//trim(censtr)//'_'//trim(outstr)//'.dat')
         if (eweight == 1) then
             open(42+j,file='bl_'//trim(blstr)//'_epairdist_'//trim(censtr)//'_'//trim(outstr)//'.dat')
         endif
         do b=1,nb
-            write(20+j,'(2f15.8)' ) (REAL(b)-0.5)*dr, bl_gofr(b)
+            write(20+j,'(2f15.8)' ) (REAL(b)-0.5)*dr*L, bl_gofr(b)
             if (eweight == 1) then
-                write(42+j,'(2f15.8)' ) (REAL(b)-0.5)*dr, bl_egofr(b)
+                write(42+j,'(2f15.8)' ) (REAL(b)-0.5)*dr*L, bl_egofr(b)
             endif
         enddo
         close(20+j)
@@ -292,7 +313,7 @@ Program pairdist
       ! Output to file
       write( *,* ) 'Outputing to output file'
       open(20, file='pairdist_'//trim(censtr)//'_'//trim(outstr)//'.dat')
-      if (eweight == 1) open(42,file='epairdist_'//trim(censtr)//'_'//trim(outstr)//'.dat')
+      if (eweight == 1) open(42,file=trim(etype)//'pairdist_'//trim(censtr)//'_'//trim(outstr)//'.dat')
       do b=1, nb
         write(20,'(1f8.4,5x,1e15.6)' ) (REAL(b)-0.5)*dr, tot_gofr(b)
         if (eweight == 1) write(42,'(1f8.4,5x,1e15.6)' ) (REAL(b)-0.5)*dr, tot_egofr(b)
