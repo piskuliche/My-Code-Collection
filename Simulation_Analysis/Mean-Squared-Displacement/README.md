@@ -4,6 +4,11 @@ Compile with
  module load compiler/pgi/18
  pgf90 -O3 main.f90 -mcmodel=medium -o calc_msd.exe
 
+or: 
+ module load compiler/pgi/19
+ pgfortran -O3 main_pgi.f90 -mp -mcmodel=medium -o calc_msd.exe
+ which compiles it in parallel.
+
 calc_msd.exe < diff.inp
 
 where diff.inp has the following form:

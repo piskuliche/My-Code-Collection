@@ -8,10 +8,13 @@ from scipy import stats
 parser = argparse.ArgumentParser()
 parser.add_argument('-f', default="log.lammps", help='Log file to parse')
 parser.add_argument('-nb', default=5, help='Number of blocks')
+parser.add_argument('-info', default="value", help='Information to append to output files')
+
 
 args = parser.parse_args()
 fname = str(args.f)
 nblocks=int(args.nb)
+info=str(args.info)
 
 readflag=0
 runs = []
@@ -54,3 +57,6 @@ for item in items:
     std = np.std(bl)*t_val
         
     print("The average of item %s is %.5f +/- %.5f" %(item,np.average(runs[rfinal][item]),std))
+    f = open(str(item)+'.avg','w')
+    f.write('%s %.5f %.5f\n' % (info,np.average(runs[rfinal][item]),std))
+    f.close()
