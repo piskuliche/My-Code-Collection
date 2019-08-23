@@ -39,7 +39,7 @@ def read_egofr(t_val,selec1, selec2, nblocks):
     """
     # Read in eRDF
     fstring="epairdist_"+selec1+"_"+selec2+".dat"
-    dist, egofr = np.genfromtxt(fstring, usecols=(0,1), unpack=True)
+    dist, egofr,e2gofr = np.genfromtxt(fstring, usecols=(0,1,2), unpack=True)
 
     # Reads in block eRDF
     bl_egofr = []
@@ -49,9 +49,9 @@ def read_egofr(t_val,selec1, selec2, nblocks):
 
     err_egofr = np.std(bl_egofr,axis=0)*t_val
     np.savetxt('eRDF_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dist,egofr,err_egofr])
-    return egofr, bl_egofr, err_egofr
+    return egofr, bl_egofr, err_egofr,e2gofr
 
-def pred_gofr(gofr, egofr, bl_gofr, bl_egofr, T, Tp):
+def pred_gofr(gofr, egofr,e2gofr, bl_gofr, bl_egofr, T, Tp):
     """
     This function calculates the first order taylor series prediction based on the gofr and the derivative
     Note: egofr = <dH delta(r-r')> = - d(RDF)/d(beta)
@@ -61,10 +61,12 @@ def pred_gofr(gofr, egofr, bl_gofr, bl_egofr, T, Tp):
     This prediction is saved to a file (i.e. gofr_pred_1_1_235.0_from_298.dat)
     """
     pred = []
+    pred2 = []
     taylorfactor=1/(kb*Tp) - 1/(kb*T) # (beta-beta_o)
     # Makes the prediction for each point in the gofr
     for i in range(len(gofr)):
         pred.append(gofr[i]-egofr[i]*taylorfactor)
+        pred2.append(pred[i]+e2gofr[i]*taylorfactor**2.)
     # Block averaging
     bl_pred = []
     for b in range(nblocks):
@@ -75,7 +77,7 @@ def pred_gofr(gofr, egofr, bl_gofr, bl_egofr, T, Tp):
     err_pred = np.std(bl_pred, axis=0)*t_val
     # Saves the result to a file (i.e. gofr_pred_1_1_235.0_from_298.dat)
     if graphmovie == 0:
-        np.savetxt('gofr_pred_'+str(selec1)+"_"+str(selec2)+"_"+str(Tp)+'_from_'+str(int(T))+'.dat', np.c_[dist,pred,err_pred])
+        np.savetxt('gofr_pred_'+str(selec1)+"_"+str(selec2)+"_"+str(Tp)+'_from_'+str(int(T))+'.dat', np.c_[dist,pred,err_pred,pred2])
     else:
         np.savetxt('gofr_frame_'+str(int(Tp))+'.dat', np.c_[dist,pred,err_pred])
     return pred
@@ -85,7 +87,6 @@ def calc_nofr(gofr, dist, bl_gofr, L, N):
     """
     This piece of code calculates the coordination number.
     This is achieved via a trapezoid rule integration
-    n = (4*pi*N/V)∫<delta(r-r')>*r^2*dr
     This also calculates the block values of the coordination number
     and the uncertainty according to a 95% confidence interval
     as determined by Student's t-distribution
@@ -104,7 +105,6 @@ def calc_dnofr(egofr, dist, bl_egofr, L, N):
     """
     This piece of code calculates the derivative of the coordination number.
     This is achieved via a trapezoid rule integration
-    n = -(4*pi*N/V)∫<deltaH delta(r-r')>*r^2*dr
     This also calculates the block values of the coordination number
     and the uncertainty according to a 95% confidence interval
     as determined by Student's t-distribution
@@ -279,7 +279,7 @@ def calc_dS(PMF, dPMF,bl_PMF,bl_dPMF, dist, T):
 
 import numpy as np
 import argparse, math
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from scipy import stats,integrate
 from scipy.signal import find_peaks
 
@@ -328,14 +328,14 @@ dist, gofr, bl_gofr, err_gofr = read_gofr(t_val,selec1, selec2, nblocks)
 
 # Read dHGofR
 if ew == 1:
-    egofr, bl_egofr, err_egofr = read_egofr(t_val, selec1, selec2, nblocks)
+    egofr, bl_egofr, err_egofr, e2gofr = read_egofr(t_val, selec1, selec2, nblocks)
     pGofR =  []
     if graphmovie == 0:
         for tp in Tp:
-            pGofR.append(pred_gofr(gofr, egofr, bl_gofr, bl_egofr, T, float(tp)))
+            pGofR.append(pred_gofr(gofr, egofr, e2gofr, bl_gofr, bl_egofr, T, float(tp)))
     else:
         for tp in range(220,400):
-            pGofR.append(pred_gofr(gofr, egofr, bl_gofr, bl_egofr, T, float(tp)))
+            pGofR.append(pred_gofr(gofr, egofr,e2gofr, bl_gofr, bl_egofr, T, float(tp)))
 
 # Calculates the Coordination Number
 nofr, bl_nofr = calc_nofr(gofr, dist, bl_gofr, L, N)

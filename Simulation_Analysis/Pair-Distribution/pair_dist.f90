@@ -10,23 +10,23 @@ Program pairdist
       integer :: nconfigs, startconfig, endconfig, rconfigs
       integer :: startskip, endskip
       integer :: natoms, or_int, nblocks
-      integer :: ioerr, eweight
+      integer :: ioerr, eweight, reweight
 
-      real :: dr, L, rij_sq, pi
-      real :: rho, const, r_hi, r_lo,ctmp
-      real*8 :: eavg
-      real, dimension(3) :: rtmp, rij
-      real*8, allocatable :: eavgbl(:)
-      real, allocatable ::  h_id(:), tot_gofr(:), bl_gofr(:)
-      real*8, allocatable :: tot_egofr(:), bl_egofr(:), en(:)
-      real, allocatable :: r1(:,:,:), r2(:,:,:)
-      real, allocatable :: g(:,:), eg(:,:)
+      real*8 :: dr, L, rij_sq, pi
+      real*8 :: rho, const, r_hi, r_lo,ctmp
+      real*8 :: eavg, desqavg, weight, sumweight
+      real*8, dimension(3) :: rtmp, rij
+      real*8, allocatable :: eavgbl(:),desqavgbl(:)
+      real*8, allocatable ::  h_id(:), tot_gofr(:), bl_gofr(:)
+      real*8, allocatable :: tot_egofr(:), bl_egofr(:), tot_e2gofr(:), bl_e2gofr(:), en(:),den(:)
+      real*8, allocatable :: r1(:,:,:), r2(:,:,:)
+      real*8, allocatable :: g(:,:), eg(:,:), e2g(:,:)
       integer, allocatable :: typ(:), mol(:), mol1(:), mol2(:)
       integer, allocatable :: h(:,:)
 
       
       character(len=20) :: nfile, molfile, efile
-      character(len=6) :: censtr, outstr,blstr
+      character(len=6) :: censtr, outstr, blstr
       character(len=6) :: etype
       
         
@@ -43,7 +43,8 @@ Program pairdist
       pi = 3.14159
       
       NAMELIST /nml/ nfile, dr, startconfig, endconfig, startskip, endskip,&
-      nblocks, selec1, selec2, L, or_int, natoms, molfile, eweight, efile, etype
+      nblocks, selec1, selec2, L, or_int, natoms, molfile, eweight, efile, &
+      etype, reweight
 
       ! Example Defaults
       nfile             = "traj.xyz"    ! Trajectory File Name
@@ -62,6 +63,7 @@ Program pairdist
       eweight           = 0             ! Weight by energies [0] off [1] on 
       efile             = "e_init.out"  ! Energy Weight File
       etype             = "e"           !
+      reweight          = 0             ! Should reweight by prob dist [0] off [1] on
 
       
       ! Reads the namelist from standard input
@@ -130,10 +132,15 @@ Program pairdist
       allocate(eavgbl(nblocks)) ! block energy array
       ! Allocate Energy Fluctuations Arrays
       if (eweight == 1) then
-        allocate(en(rconfigs))
+        allocate(en(rconfigs),den(rconfigs))
         allocate(eg(rconfigs,nb)) ! eg array
+        allocate(e2g(rconfigs,nb)) !e2g array
         allocate(tot_egofr(nb), bl_egofr(nb)) ! Energy Flucts GofR
-        en = 0.0; eg = 0.0; tot_egofr=0.0; bl_egofr=0.0
+        allocate(tot_e2gofr(nb), bl_e2gofr(nb)) ! E2 Flucts GofR
+        allocate(desqavgbl(nblocks))
+        en = 0.0; den = 0.0; eg = 0.0; tot_egofr=0.0; bl_egofr=0.0
+        tot_e2gofr=0.0; bl_e2gofr=0.0; desqavg=0.0; e2g=0.0
+        
       endif
 
       mol1 = 0; mol2 = 0
@@ -202,7 +209,7 @@ Program pairdist
                 end if
             enddo
         else
-            read(13,*)
+            if (eweight == 1) read(13,*)
             do j=1, startskip
                 read(12,*)
             enddo
@@ -213,17 +220,32 @@ Program pairdist
       enddo
       close(12)
       if (eweight == 1) close(13)
-      if (eweight == 1) eavg = eavg/rconfigs
-      if (eweight == 1)write(*,*) 'total average energy is ',eavg
-      eavgbl=0.0
+      if (eweight == 1) eavg = eavg/real(rconfigs)
+      if (eweight == 1) write(*,*) 'total average energy is ',eavg
       if (eweight == 1) then
+          desqavg=0.0; den=0.0
+          do i=1,rconfigs
+              den(i) = (en(i)-eavg)
+              desqavg = desqavg + (den(i)**2)/real(rconfigs)
+          enddo
+          write(*,*) 'total average fluctuation in sq energy is', desqavg
+      endif
+      if (eweight == 1) then
+          eavgbl=0.0
+          desqavgbl=0.0
           do j=1,nblocks
             do i=1,rconfigs/nblocks
                 k=(j-1)*rconfigs/nblocks+i
                 eavgbl(j) = eavgbl(j) + en(k)
             end do
-            eavgbl(j) = eavgbl(j)/(rconfigs/nblocks)
+            eavgbl(j) = eavgbl(j)/(real(rconfigs)/real(nblocks))
+            do i=1,rconfigs/nblocks
+                k=(j-1)*rconfigs/nblocks+i
+                desqavgbl(j) = desqavgbl(j) + (en(k)-eavgbl(j))**2
+            end do
+            desqavgbl(j) = desqavgbl(j)/(rconfigs/nblocks)
             write(*,*) 'block ',j,' average energy is ', eavgbl(j)
+            write(*,*) 'block ',j,' average sq. fluct is ', desqavgbl(j)
           enddo
       endif
       write(*,*) "Calculating GofR"
@@ -261,18 +283,36 @@ Program pairdist
         g(i,:) = REAL( h(i,:) ) / REAL( n1 ) ! Norm by number of n1
         g(i,:) = g(i,:) / h_id(:) ! Normalize based on ideal result
         if (eweight == 1) eg(i,:) = en(i) * g(i,:) ! Weight by energies
+        if (eweight == 1) e2g(i,:) = en(i)**2*g(i,:) ! Weight by sq energies
       enddo
       !$OMP END PARALLEL DO
       write(*,*) "Tidying things up!"
       write(censtr, "(I0)") selec1
       write(outstr, "(I0)") selec2
       ! Total calculation
+      sumweight=0.0; weight=0.0 ! zeros reweighting
       do i=1, rconfigs
+        if (reweight == 1) then
+            weight = exp(-(en(i)-eavg)/(2*desqavg))
+            sumweight = sumweight + weight
+        endif
         do b=1,nb
-            tot_gofr(b) = tot_gofr(b) + g(i,b)/rconfigs
-            if (eweight == 1) tot_egofr(b) = tot_egofr(b) + (eg(i,b)-eavg*g(i,b))/rconfigs
+            if (reweight == 0) then
+                tot_gofr(b) = tot_gofr(b) + g(i,b)/rconfigs
+                if (eweight == 1) tot_egofr(b)  = tot_egofr(b) + (eg(i,b)-eavg*g(i,b))/real(rconfigs)
+                if (eweight == 1) tot_e2gofr(b) = tot_e2gofr(b) + ((den(i)**2.-desqavg)*g(i,b))/real(rconfigs)
+            else if (reweight == 1) then
+                tot_gofr(b) = tot_gofr(b) + g(i,b)*weight
+                if (eweight == 1) tot_egofr(b)  = tot_egofr(b) + (eg(i,b)-eavg*g(i,b))*weight
+                if (eweight == 1) tot_e2gofr(b) = tot_e2gofr(b) + ((den(i)**2.-desqavg)*g(i,b))*weight 
+            endif
         enddo
       enddo
+      if (reweight == 1) then
+          tot_gofr(:) = tot_gofr(:)/sumweight
+          tot_egofr(:) = tot_egofr(:)/sumweight
+          tot_e2gofr(:) = tot_e2gofr(:)/sumweight
+      endif
       !tot_gofr(:) =dd tot_gofr(:)/rconfigs 
       !if (eweight == 1) tot_egofr(:) = tot_egofr(:)/rconfigs - eavg*tot_gofr(:)
       ! Block calculation
@@ -286,6 +326,8 @@ Program pairdist
                 bl_gofr(b) = bl_gofr(b) + g(k,b)/(rconfigs/nblocks)
                 if (eweight == 1) bl_egofr(b) = bl_egofr(b) &
                     +(eg(k,b)-eavgbl(j)*g(k,b))/(rconfigs/nblocks)
+                if (eweight == 1) bl_e2gofr(b) = bl_e2gofr(b) &
+                    +((den(k)**2.-desqavgbl(j))*g(k,b))/(rconfigs/nblocks)
             enddo
         enddo
         !bl_gofr(:)=bl_gofr(:)/(rconfigs/nblocks)
@@ -298,7 +340,7 @@ Program pairdist
         do b=1,nb
             write(20+j,'(2f15.8)' ) (REAL(b)-0.5)*dr*L, bl_gofr(b)
             if (eweight == 1) then
-                write(42+j,'(2f15.8)' ) (REAL(b)-0.5)*dr*L, bl_egofr(b)
+                write(42+j,'(3f15.8)' ) (REAL(b)-0.5)*dr*L, bl_egofr(b), bl_e2gofr(b)
             endif
         enddo
         close(20+j)
@@ -316,7 +358,7 @@ Program pairdist
       if (eweight == 1) open(42,file=trim(etype)//'pairdist_'//trim(censtr)//'_'//trim(outstr)//'.dat')
       do b=1, nb
         write(20,'(1f8.4,5x,1e15.6)' ) (REAL(b)-0.5)*dr, tot_gofr(b)
-        if (eweight == 1) write(42,'(1f8.4,5x,1e15.6)' ) (REAL(b)-0.5)*dr, tot_egofr(b)
+        if (eweight == 1) write(42,'(1f8.4,5x,1e15.6,1e15.6)' ) (REAL(b)-0.5)*dr, tot_egofr(b), tot_e2gofr(b)
       enddo
       close(20)
       if (eweight == 1) close(42)

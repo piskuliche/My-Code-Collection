@@ -59,6 +59,7 @@ def read_mols(filename):
 
 if __name__ == "__main__":
     import sys
+    realL=-1
     filename = "-h"
     if len(sys.argv) < 3:
         print("Usage: setup_gofr.py filename dr [selec1 selec2] [startconfig endconfig or_int] [startskip endskip]")
@@ -91,7 +92,8 @@ if __name__ == "__main__":
         endconfig = int(sys.argv[6])
         or_int = int(sys.argv[7])
         startskip = int(sys.argv[8])
-        endskip = int(sys.argv[9]) 
+        endskip = int(sys.argv[9])
+        realL = float(sys.argv[10])
     else: 
         selec1 = 1
         selec2 = 1
@@ -101,4 +103,6 @@ if __name__ == "__main__":
         startskip=2
         endskip=0
     natoms, L = read_mols(filename)
+    if realL > 0:
+        L = realL
     create_template(natoms,L,selec1,selec2, startconfig, endconfig, or_int, dr,startskip, endskip)
