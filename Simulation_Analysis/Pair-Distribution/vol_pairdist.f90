@@ -12,7 +12,7 @@ Program pairdist
       integer :: natoms, or_int, nblocks
       integer :: ioerr, eweight, reweight
 
-      real*8 :: dr, L, rij_sq, pi
+      real*8 :: dr, L, rij_sq, pi, minL
       real*8 :: rho, const, r_hi, r_lo,ctmp
       real*8 :: eavg, desqavg, weight, sumweight
       real*8, dimension(3) :: rtmp, rij
@@ -20,10 +20,11 @@ Program pairdist
       real*8, allocatable ::  h_id(:), tot_gofr(:), bl_gofr(:)
       real*8, allocatable :: tot_egofr(:), bl_egofr(:), tot_e2gofr(:), bl_e2gofr(:), en(:),den(:)
       real*8, allocatable :: r1(:,:,:), r2(:,:,:)
-      real*8, allocatable :: g(:,:), eg(:,:), e2g(:,:)
+      real*8, allocatable :: g(:,:), eg(:,:), e2g(:,:), npth_id(:,:)
+      real*8, allocatable :: nptL(:), nptdr(:), nptconst(:)
       integer, allocatable :: typ(:), mol(:), mol1(:), mol2(:)
       integer, allocatable :: h(:,:)
-
+      logical :: file_exists
       
       character(len=20) :: nfile, molfile, efile
       character(len=6) :: censtr, outstr, blstr
@@ -93,12 +94,36 @@ Program pairdist
       write(*,*) 'selec2: ', selec2
       write(*,*) 'dr: ', dr
       write(*,*) '*************'
-    
-      ! Set coords and bins
-      dr = dr / L
-      nb = FLOOR( 0.5/dr ) ! half box units
+
+
+      ! Set number of configurations
       nconfigs = (endconfig-startconfig)
       rconfigs = nconfigs/or_int
+
+      ! Read box length if NPT
+      if ( L == 0.0 ) then
+          inquire(file='L.dat', exist=file_exists)
+          write(*,*) "L.dat exists: ", file_exists
+          open(15, file='L.dat', status='old')
+          allocate(nptL(rconfigs), nptdr(rconfigs), nptconst(rconfigs))
+          nptL=0.0; cnt = 0; minL = 1000.0; nptdr=0.0; nptconst=0.0
+          do i=1, nconfigs
+              if (MOD(i-1,or_int) == 0) then
+                  cnt = cnt + 1
+                  read(15,*) nptL(cnt)
+                  ! Sets minimum length
+                  if (nptL(cnt) < minL) minL=nptL(cnt)
+                  ! calculates the roving dr
+                  nptdr(cnt) = dr/nptL(cnt)
+              endif
+              ! Calculates number of bins based on minimum half box size of run.
+              nb = FLOOR( 0.5/(dr/minL) )
+          enddo
+      else
+          dr = dr / L
+          nb = FLOOR( 0.5/dr ) ! half box units
+      end if
+    
       write(*,*) "Starting Pair Distribution Calculation"
       write(*,*) "This will average over ", rconfigs, " configurations"
       write(*,*) "Opening ", nfile
@@ -126,7 +151,7 @@ Program pairdist
 
       ! Allocate GofRArrays
       allocate(mol1(n1),mol2(n2)) ! Molecular Storage
-      allocate(h_id(nb))          ! Ideal Result Storage
+      allocate(h_id(nb),npth_id(rconfigs,nb))          ! Ideal Result Storage
       allocate(h(rconfigs,nb), g(rconfigs,nb)) ! h and g arrays
       allocate(r1(rconfigs,n1,3), r2(rconfigs,n2,3)) ! coord arrays
       allocate(tot_gofr(nb),bl_gofr(nb)) ! gofr arrays
@@ -148,15 +173,27 @@ Program pairdist
 
 
       ! Calculations of ideal
-      r_lo = 0.0; r_hi = 0.0; h_id = 0.0
+      r_lo = 0.0; r_hi = 0.0; h_id = 0.0; npth_id =0.0
       rho = REAL(n1) ! note that we are in box coords
       if (selec1 /= selec2) rho=REAL(n2)
+
+      ! Sets the constants for an nvt run
       const = 4.0 * pi * rho / 3.0 ! Const for multiplying 
-      do b=1, nb
-        r_lo = REAL( b-1 ) * dr
-        r_hi = r_lo + dr
-        h_id(b) = const * ( r_hi**3.0 - r_lo ** 3.0 ) ! Ideal Number
-      enddo
+      if ( L > 0 ) then
+          do b=1, nb
+            r_lo = REAL( b-1 ) * dr
+            r_hi = r_lo + dr
+            h_id(b) = const * ( r_hi**3.0 - r_lo ** 3.0 ) ! Ideal Number
+          enddo
+      else
+          do i=1,rconfigs
+              do b=1, nb
+                r_lo = real( b-1 ) *nptdr(i)
+                r_hi = r_lo + nptdr(i)
+                npth_id(i,b) = const * (r_hi**3.0 - r_lo ** 3.0)
+              enddo
+          enddo
+      endif
 
       ! Initialize to Zero
       h = 0; r1 = 0.0; r2 = 0.0; g = 0.0
@@ -193,18 +230,30 @@ Program pairdist
                 read(12,*) ctmp, (rtmp(a), a=1,3)
                 ! Creates arrays of coordinates (in box coords)
                 if (typ(j) == selec1) then
-                    r1(cnt,cnt1,:) = rtmp(:)/L
+                    if ( L > 0.0 ) then 
+                        r1(cnt,cnt1,:) = rtmp(:)/L
+                    else
+                        r1(cnt,cnt1,:) = rtmp(:)/nptL(cnt)
+                    endif
                     mol1(cnt1) = mol(j)
                     ! Checks if selec1 and selec2 are the same
                     if(selec2 == selec1) then
-                        r2(cnt,cnt1,:) = rtmp(:)/L
+                        if ( L > 0.0 ) then
+                            r2(cnt,cnt1,:) = rtmp(:)/L
+                        else
+                            r2(cnt,cnt1,:) = rtmp(:)/nptL(cnt)
+                        endif
                         mol2(cnt1) = mol(j)
                     endif
                     cnt1 = cnt1 + 1
                 ! Note - this will never happen if selec1 and selec2 are
                 ! equivalent, as that is handeled previously.
                 else if (typ(j) == selec2) then
-                    r2(cnt,cnt2,:) = rtmp(:)/L
+                    if ( L > 0.0 ) then
+                        r2(cnt,cnt2,:) = rtmp(:)/L
+                    else
+                        r2(cnt,cnt2,:) = rtmp(:)/nptL(cnt)
+                    endif
                     mol2(cnt2) = mol(j)
                     cnt2 = cnt2 + 1
                 end if
@@ -220,18 +269,18 @@ Program pairdist
         end if
       enddo
       close(12)
-      if (eweight == 1) close(13)
-      if (eweight == 1) eavg = eavg/real(rconfigs)
-      if (eweight == 1) write(*,*) 'total average energy is ',eavg
+
+      ! Calculate fluctuations in energy and blocking
       if (eweight == 1) then
+          close(13)
+          eavg = eavg/real(rconfigs)
+          write(*,*) 'total average energy is ',eavg
           desqavg=0.0; den=0.0
           do i=1,rconfigs
               den(i) = (en(i)-eavg)
               desqavg = desqavg + (den(i)**2)/real(rconfigs)
           enddo
           write(*,*) 'total average fluctuation in sq energy is', desqavg
-      endif
-      if (eweight == 1) then
           eavgbl=0.0
           desqavgbl=0.0
           do j=1,nblocks
@@ -262,7 +311,11 @@ Program pairdist
                         rij(:)      = r1(i,j,:) - r2(i,k,:)
                         rij(:)      = rij(:) - ANINT( rij(:) )
                         rij_sq      = SUM( rij**2 )
-                        b           = FLOOR( SQRT( rij_sq ) / dr ) + 1
+                        if ( L > 0 ) then
+                            b           = FLOOR( SQRT( rij_sq ) / dr ) + 1
+                        else
+                            b           = FLOOR( SQRT( rij_sq ) / nptdr(i) ) + 1
+                        endif
                         if ( b <= nb ) h(i,b) = h(i,b) + 1
                     endif
                 enddo
@@ -273,7 +326,11 @@ Program pairdist
                             rij(:)  = r1(i,j,:) - r2(i,k,:)
                             rij(:)  = rij(:) - ANINT( rij(:) )
                             rij_sq  = SUM( rij**2 )
-                            b       = FLOOR( SQRT( rij_sq ) / dr ) + 1
+                            if ( L > 0 ) then
+                                b       = FLOOR( SQRT( rij_sq ) / dr ) + 1
+                            else
+                                b       = FLOOR( SQRT( rij_sq ) / nptdr(i) ) + 1
+                            endif
                             IF ( b <= nb ) h(i,b) = h(i,b) + 2
                         endif
                     enddo
@@ -282,7 +339,11 @@ Program pairdist
         enddo
         ! Final Calculations
         g(i,:) = REAL( h(i,:) ) / REAL( n1 ) ! Norm by number of n1
-        g(i,:) = g(i,:) / h_id(:) ! Normalize based on ideal result
+        if ( L > 0.0 ) then
+            g(i,:) = g(i,:) / h_id(:) ! Normalize based on ideal result
+        else 
+            g(i,:) = g(i,:) / npth_id(i,:) ! Normalize based on ideal result
+        endif
         if (eweight == 1) eg(i,:) = en(i) * g(i,:) ! Weight by energies
         if (eweight == 1) e2g(i,:) = en(i)**2*g(i,:) ! Weight by sq energies
       enddo
@@ -331,17 +392,17 @@ Program pairdist
                     +((den(k)**2.-desqavgbl(j))*g(k,b))/(rconfigs/nblocks)
             enddo
         enddo
-        !bl_gofr(:)=bl_gofr(:)/(rconfigs/nblocks)
-        !if (eweight == 1) bl_egofr(:)=bl_egofr(:)/(rconfigs/nblocks) - eavgbl(j)*bl_gofr(:)
+        
+        if ( L > 0.0 ) dr = dr * L
         write(blstr, "(I0)") j
         open(20+j,file='bl_'//trim(blstr)//'_pairdist_'//trim(censtr)//'_'//trim(outstr)//'.dat')
         if (eweight == 1) then
             open(42+j,file='bl_'//trim(blstr)//'_epairdist_'//trim(censtr)//'_'//trim(outstr)//'.dat')
         endif
         do b=1,nb
-            write(20+j,'(2f15.8)' ) (REAL(b)-0.5)*dr*L, bl_gofr(b)
+            write(20+j,'(2f15.8)' ) (REAL(b)-0.5)*dr, bl_gofr(b)
             if (eweight == 1) then
-                write(42+j,'(3f15.8)' ) (REAL(b)-0.5)*dr*L, bl_egofr(b), bl_e2gofr(b)
+                write(42+j,'(3f15.8)' ) (REAL(b)-0.5)*dr, bl_egofr(b), bl_e2gofr(b)
             endif
         enddo
         close(20+j)
@@ -349,8 +410,6 @@ Program pairdist
       enddo
 
 
-      ! Convert out of box units
-      dr = dr*L
       
       write(*,*) "Converted back to original coordinates"
       ! Output to file

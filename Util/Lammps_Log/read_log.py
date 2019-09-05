@@ -42,21 +42,25 @@ with open(fname, 'r') as f:
 
 print("There are %s run commands" % len(runs))
 for r in range(len(runs)):
-    print("run %d has %d data points" % (r, len(runs[r][items[0]])))
-rfinal = len(runs)-1
+    print("*****************************************************************")
+    print("Run %d has %d data points" % (r, len(runs[r][items[0]])))
+    if runs[r]["Volume"][0]==runs[r]["Volume"][1]:
+        print("Run Type is NVT")
+    else:
+        print("Run Type is NPT")
 
-nitems = len(runs[r][items[0]])-1
-nperb = int(nitems/nblocks)
-t_val=stats.t.ppf(0.975,nblocks-1)/np.sqrt(nblocks)
-for item in items:
-    bl = []
-    for b in range(nblocks):
-        bstart = b*nperb + 1
-        bend = bstart + nperb
-        bl.append(np.average(runs[rfinal][item][bstart:bend]))
-    std = np.std(bl)*t_val
-        
-    print("The average of item %s is %.5f +/- %.5f" %(item,np.average(runs[rfinal][item]),std))
-    f = open(str(item)+'.avg','w')
-    f.write('%s %.5f %.5f\n' % (info,np.average(runs[rfinal][item]),std))
-    f.close()
+    nitems = len(runs[r][items[0]])-1
+    nperb = int(nitems/nblocks)
+    t_val=stats.t.ppf(0.975,nblocks-1)/np.sqrt(nblocks)
+    for item in items:
+        bl = []
+        for b in range(nblocks):
+            bstart = b*nperb + 1
+            bend = bstart + nperb
+            bl.append(np.average(runs[r][item][bstart:bend]))
+        std = np.std(bl)*t_val
+            
+        print("The average of item %s is %.5f +/- %.5f" %(item,np.average(runs[r][item]),std))
+        f = open("run"+str(r+1)+"_"+str(item)+'.avg','w')
+        f.write('%s %.5f %.5f\n' % (info,np.average(runs[r][item]),std))
+        f.close()
