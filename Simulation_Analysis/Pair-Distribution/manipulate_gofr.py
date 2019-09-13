@@ -272,7 +272,42 @@ def calc_dS(PMF, dPMF,bl_PMF,bl_dPMF, dist, T):
     np.savetxt('dS_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dist,dS,err_dS])
     return dS
 
+def calc_sconfig(dist, gofr, bl_gofr):
+    """
+    This is a calculation of the configurational entropy from the equation
+    s2/N = -4*PI/2*N^2*kb/V*int r^2*dr*(g(r)ln[g(r)]-g(r)+1)
+    Results are written to a file (i.e. s2_1_1.dat)
+    """
+    val=[]
+    dred=[]
+    V=L**3.0
+    # Total Calculation
+    for i in range(len(gofr)):
+        if gofr[i] > 0.0:
+            dred.append(dist[i])
+            val.append(dist[i]**2*(gofr[i]*np.log(gofr[i])-gofr[i]+1))
+    s2=-(4*np.pi)/2*N/V*kb*integrate.cumtrapz(val, dred,initial=0)
+    np.savetxt('s2_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dred, s2])
+    bl_s2 = []
+    # Block Calculation
+    for b in range(len(bl_gofr)):
+        tmp_val = []
+        for i in range(len(bl_gofr[b])):
+            if gofr[i] > 0.0:
+                if bl_gofr[b][i] <= 0.0: # This makes sure it isn't less than or equal to zero
+                    tmp_val.append(0)
+                else:
+                    tmp_val.append(dist[i]**2*(bl_gofr[b][i]*np.log(bl_gofr[b][i])-bl_gofr[b][i]+1))
+        bl_s2.append(-(4*np.pi)/2*N/V*kb*integrate.cumtrapz(tmp_val, dred,initial=0))
+        err_s2 = np.std(bl_s2, axis=0)*t_val
 
+        # Writes to a file
+        np.savetxt('s2_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dred, s2, err_s2])
+
+    return s2
+
+def calc_dsconfig(dist, gofr, bl_gofr):
+    return
 
     
 
@@ -346,6 +381,8 @@ maxvals, dmax, minvals, dmin = peak_find(dist, gofr, nofr,thresh)
 # Calculates the PMF
 PMF, c, bl_PMF = calc_PMF(dist,gofr, bl_gofr, T)
 
+# Calculates the configurational entropy
+s2 = calc_sconfig(dist, gofr, bl_gofr)
 
 # Calculates the Derivative of the PMF
 if ew == 1:

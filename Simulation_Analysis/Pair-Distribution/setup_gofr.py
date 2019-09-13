@@ -57,16 +57,36 @@ def read_mols(filename):
     print('There are %d atoms and %d items in molinfo.dat' % (natoms, len(mols)))
     return natoms, L
 
+def read_log(filename, ecol, volcol):
+    with open(filename, 'r') as f:
+        lines=f.readlines()
+        flag = 0
+        for line in lines:
+            if "Loop" in line.split():
+                flag = 0
+            if flag == 1:
+                e.append(float(line.split()[ecol]))
+                vol.append(float(line.split()[volcol]))
+            if "Step" in line.split():
+                flag =1
+                e = []
+                vol = []
+        Lval = np.asarray(vol)**(1/3.)
+        np.savetxt('e_init.out', np.c_[e])
+        np.savetxt('vol_init.out', np.c_[vol])
+        np.savetxt('L.dat', np.c_[Lval])
+
+    
 if __name__ == "__main__":
     import sys
     realL=-1
     filename = "-h"
     if len(sys.argv) < 3:
-        print("Usage: setup_gofr.py filename dr [selec1 selec2] [startconfig endconfig or_int] [startskip endskip]")
+        print("Usage: setup_gofr.py filename dr [selec1 selec2] [startconfig endconfig or_int] [startskip endskip realL ecol volcol log]")
         sys.exit()
     filename = str(sys.argv[1])
     if filename == "-h":
-        print("Usage: setup_gofr.py filename dr [selec1 selec2] [startconfig endconfig or_int] [startskip endskip]")
+        print("Usage: setup_gofr.py filename dr [selec1 selec2] [startconfig endconfig or_int] [startskip endskip realL ecol volcol log]")
         sys.exit()
     dr = float(sys.argv[2])
     if len(sys.argv) > 3 and len(sys.argv) <= 5:
@@ -77,6 +97,10 @@ if __name__ == "__main__":
         or_int=1
         startskip=2
         endskip=0
+        realL=-5
+        ecol=2
+        volcol=11
+        logname="log.lammps"
     elif len(sys.argv) > 5 and len(sys.argv) <= 8:
         selec1 = int(sys.argv[3])
         selec2 = int(sys.argv[4])
@@ -85,6 +109,10 @@ if __name__ == "__main__":
         or_int = int(sys.argv[7])
         startskip=2
         endskip=0
+        realL=-5
+        ecol=2
+        volcol=11
+        logname="log.lammps"
     elif len(sys.argv) > 8:
         selec1 = int(sys.argv[3])
         selec2 = int(sys.argv[4])
@@ -94,6 +122,9 @@ if __name__ == "__main__":
         startskip = int(sys.argv[8])
         endskip = int(sys.argv[9])
         realL = float(sys.argv[10])
+        ecol = int(sys.argv[11])
+        volcol = int(sys.argv[12])
+        logname = str(sys.argv[13])
     else: 
         selec1 = 1
         selec2 = 1
@@ -102,7 +133,12 @@ if __name__ == "__main__":
         or_int=1
         startskip=2
         endskip=0
+        realL = -5
+        ecol=2
+        volcol=11
+        logname="log.lammps"
     natoms, L = read_mols(filename)
     if realL > 0:
         L = realL
     create_template(natoms,L,selec1,selec2, startconfig, endconfig, or_int, dr,startskip, endskip)
+    read_log(logname, ecol, volcol)
