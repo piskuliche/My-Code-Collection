@@ -3,7 +3,31 @@
 This is a code that is meant to plot, and manipulate the gofr's output by the fortran code.
 """
 
-def read_gofr(t_val,selec1, selec2, nblocks):
+def read_input(fname, selec1, selec2):
+    with open(fname, 'r') as f:
+        lines=f.readlines()
+        for line  in lines:
+            if "L" in line:
+                L=float(line[2:-2])
+            if "selec1" in line:
+                tmp=int(line[7:-2])
+            if "selec2" in line:
+                tmp2=int(line[7:-2])
+            if "nblocks" in line:
+                nblocks=int(line[8:-2])
+    # Doesn't override command line
+    if int(selec1) == 0:
+        selec1 = str(tmp)
+    if int(selec2) == 0:
+        selec2 = str(tmp2)
+
+    if L == 0.0:
+        npt = 1
+        L = np.genfromtxt("L.dat", usecols=0)
+    return L, selec1, selec2, npt
+
+
+def read_gofr(t_val,selec1, selec2):
     """
     This function reads in the gofr data (two column distance gofr formatted)
     from a file (i.e. pairdist_1_1.dat)
@@ -13,6 +37,7 @@ def read_gofr(t_val,selec1, selec2, nblocks):
     interval associated with Student's t-distribution
     Writes to a file (i.e RDF_1_1_298.dat)
     """
+    print("Reading in the RDF")
     # Reads in RDF
     fstring="pairdist_"+selec1+"_"+selec2+".dat"
     dist, gofr = np.genfromtxt(fstring, usecols=(0,1), unpack=True)
@@ -27,7 +52,7 @@ def read_gofr(t_val,selec1, selec2, nblocks):
     np.savetxt('RDF_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dist,gofr,err_gofr])
     return dist, gofr, bl_gofr, err_gofr
 
-def read_egofr(t_val,selec1, selec2, nblocks):
+def read_egofr(t_val,selec1, selec2):
     """
     This function reads in the gofr data (two column distance gofr formatted)
     from a file (i.e. epairdist_1_1.dat)
@@ -37,6 +62,7 @@ def read_egofr(t_val,selec1, selec2, nblocks):
     interval associated with Student's t-distribution
     Writes to a file (i.e eRDF_1_1_298.dat)
     """
+    print("Reading in the RDF weighted by e")
     # Read in eRDF
     fstring="epairdist_"+selec1+"_"+selec2+".dat"
     dist, egofr,e2gofr = np.genfromtxt(fstring, usecols=(0,1,2), unpack=True)
@@ -51,7 +77,39 @@ def read_egofr(t_val,selec1, selec2, nblocks):
     np.savetxt('eRDF_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dist,egofr,err_egofr])
     return egofr, bl_egofr, err_egofr,e2gofr
 
-def pred_gofr(gofr, egofr,e2gofr, bl_gofr, bl_egofr, T, Tp):
+def read_volgofr(t_val,selec1, selec2):
+    """
+    This function reads the gofr data (two column distance gofr formatted)
+    from a file (i.e. volpairdist_1_1.dat)
+    and then the block gofrs from the block files (two column dist gofr format)
+    from the files (i.e. bl_1_volpairdist_1_1.dat)
+    It then calculates the error in the RDF from the blocks, according to a 95% confidence interval assoc
+    with the Student's t-distribution
+    Writes to a file (i.e. volRDF_1_1_298.dat)
+    """
+    print("Reading in the RDF weighted by vol")
+    # Read in volRDF
+    # Read in eRDF
+    fstring="volpairdist_"+selec1+"_"+selec2+".dat"
+    dist, volgofr, vol2gofr = np.genfromtxt(fstring, usecols=(0,1,2), unpack=True)
+    # Need to add in the extra factor of -beta
+    kb_JK=1.380648E-23
+    AperM=1E10
+    PaperBar=1E5
+    InvSi_to_invBar = (1/(kb_JK*T))*(1/AperM)**3.*PaperBar 
+    volgofr=volgofr*InvSi_to_invBar # Units = bar^-1
+    vol2gofr=vol2gofr*InvSi_to_invBar**2.0 # Units = bar^-2
+    # Reads in block volRDF
+    bl_volgofr = []
+    for i in range(1,nblocks+1):
+        bstring=("bl_%d_"%i)
+        bl_volgofr.append(np.genfromtxt(bstring+fstring, usecols=1, unpack=True)*InvSi_to_invBar)
+
+    err_volgofr = np.std(bl_volgofr,axis=0)*t_val
+    np.savetxt('volRDF_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dist,volgofr,err_volgofr])
+    return volgofr, bl_volgofr, err_volgofr,vol2gofr
+
+def pred_gofr_Tdep(gofr, egofr,e2gofr, bl_gofr, bl_egofr, T, Tp):
     """
     This function calculates the first order taylor series prediction based on the gofr and the derivative
     Note: egofr = <dH delta(r-r')> = - d(RDF)/d(beta)
@@ -60,6 +118,7 @@ def pred_gofr(gofr, egofr,e2gofr, bl_gofr, bl_egofr, T, Tp):
               = RDF(beta_o) - <dH delta(r-r')>|beta_o (beta-beta_o)
     This prediction is saved to a file (i.e. gofr_pred_1_1_235.0_from_298.dat)
     """
+    print("Predicting the RDF")
     pred = []
     pred2 = []
     taylorfactor=1/(kb*Tp) - 1/(kb*T) # (beta-beta_o)
@@ -82,6 +141,38 @@ def pred_gofr(gofr, egofr,e2gofr, bl_gofr, bl_egofr, T, Tp):
         np.savetxt('gofr_frame_'+str(int(Tp))+'.dat', np.c_[dist,pred,err_pred])
     return pred
 
+def pred_gofr_Pdep(gofr, volgofr,vol2gofr, bl_gofr, bl_volgofr, P, Pp):
+    """
+    This function calculates the first order taylor series prediction based on the gofr and the derivative
+    Note: egofr = <dH delta(r-r')> = - d(RDF)/d(beta)
+    Thus the TS expansion is:
+    RDF(beta) = RDF(beta_o) + d(RDF)/d(p)|p_0 (P-P_o)
+              = RDF(beta_o) - <dH delta(r-r')>|P_o (P-P_o)
+    This prediction is saved to a file (i.e. gofr_pred_P_1_1_100.0_from_1.0.dat)
+    """
+    print("Predicting the RDF")
+    pred = []
+    pred2 = []
+    taylorfactor=(Pp-P) # (beta-beta_o)
+    # Makes the prediction for each point in the gofr
+    for i in range(len(gofr)):
+        pred.append(gofr[i]-volgofr[i]*taylorfactor)
+        pred2.append(pred[i]+0.5*vol2gofr[i]*taylorfactor**2.)
+    # Block averaging
+    bl_pred = []
+    for b in range(nblocks):
+        tmp_pred = []
+        for i in range(len(bl_gofr[b])):
+            tmp_pred.append(bl_gofr[b][i]-bl_volgofr[b][i]*taylorfactor)
+        bl_pred.append(tmp_pred)
+    err_pred = np.std(bl_pred, axis=0)*t_val
+    # Saves the result to a file (i.e. gofr_pred_1_1_235.0_from_298.dat)
+    if graphmovie == 0:
+        np.savetxt('gofr_pred_P_'+str(selec1)+"_"+str(selec2)+"_"+str(Pp)+'_from_'+str(int(P))+'.dat', np.c_[dist,pred,err_pred,pred2])
+    else:
+        np.savetxt('gofr_pframe_'+str(int(Pp))+'.dat', np.c_[dist,pred,err_pred])
+    return pred
+
 
 def calc_nofr(gofr, dist, bl_gofr, L, N):
     """
@@ -91,17 +182,26 @@ def calc_nofr(gofr, dist, bl_gofr, L, N):
     and the uncertainty according to a 95% confidence interval
     as determined by Student's t-distribution
     """
-    nofr= integrate.cumtrapz(gofr*dist**2.*N/L**3.*4*np.pi, dist, initial=0)
+    print("Calculating the coordination number")
+    if npt == 0:
+        nofr= integrate.cumtrapz(gofr*dist**2.*N/L**3.*4*np.pi, dist, initial=0)
+    else:
+        nofr= integrate.cumtrapz(gofr*dist**2.*N/np.average(L)**3.*4*np.pi, dist, initial=0)
 
     bl_nofr=[] 
     for i in range(1,nblocks+1):
-        bl_nofr.append(integrate.cumtrapz(bl_gofr[i-1]*dist**2.*N/L**3.*4*np.pi, dist, initial=0))
+        if npt == 0:
+            bl_nofr.append(integrate.cumtrapz(bl_gofr[i-1]*dist**2.*N/L**3.*4*np.pi, dist, initial=0))
+        else:
+            bstart=int((i-1)*(len(L)-1)/nblocks)
+            bend=int(i*(len(L)-1)/nblocks)
+            bl_nofr.append(integrate.cumtrapz(bl_gofr[i-1]*dist**2.*N/np.average(L[bstart:bend])**3.*4*np.pi, dist, initial=0))
 
     err_nofr = np.std(bl_nofr,axis=0)*t_val # Note: t_val includes the 1/sqrt(nblocks) factor implicitly
     np.savetxt('nofr_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dist, nofr, err_nofr])
     return nofr, bl_nofr
 
-def calc_dnofr(egofr, dist, bl_egofr, L, N):
+def calc_dnofr_db(egofr, dist, bl_egofr, L, N):
     """
     This piece of code calculates the derivative of the coordination number.
     This is achieved via a trapezoid rule integration
@@ -109,21 +209,31 @@ def calc_dnofr(egofr, dist, bl_egofr, L, N):
     and the uncertainty according to a 95% confidence interval
     as determined by Student's t-distribution
     """
-    dnofr= integrate.cumtrapz(-egofr*dist**2.*N/L**3.*4*np.pi, dist, initial=0)
+    print("Calculating the derivative of nofr")
+    if npt == 0:
+        dnofr= integrate.cumtrapz(-egofr*dist**2.*N/L**3.*4*np.pi, dist, initial=0)
+    else:
+        dnofr= integrate.cumtrapz(-egofr*dist**2.*N/np.average(L)**3.*4*np.pi, dist, initial=0)
 
     bl_dnofr=[]
     for i in range(1,nblocks+1):
-        bl_dnofr.append(integrate.cumtrapz(-bl_egofr[i-1]*dist**2.*N/L**3.*4*np.pi, dist, initial=0))
+        if npt == 0:
+            bl_dnofr.append(integrate.cumtrapz(-bl_egofr[i-1]*dist**2.*N/L**3.*4*np.pi, dist, initial=0))
+        else:
+            bstart=int((i-1)*(len(L)-1)/nblocks)
+            bend=int(i*(len(L)-1)/nblocks)
+            bl_dnofr.append(integrate.cumtrapz(-bl_egofr[i-1]*dist**2.*N/np.average(L[bstart:bend])**3.*4*np.pi, dist, initial=0))
 
     err_dnofr = np.std(bl_dnofr,axis=0)*t_val # Note: t_val includes the 1/sqrt(nblocks) factor implicitly
-    np.savetxt('dnofr_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dist, dnofr, err_dnofr])
+    np.savetxt('dnofr_db_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dist, dnofr, err_dnofr])
     return dnofr, bl_dnofr
 
-def pred_nofr(nofr, dnofr, bl_nofr, bl_dnofr, T, Tp):
+def pred_nofr_Tdep(nofr, dnofr, bl_nofr, bl_dnofr, T, Tp):
     """
     This function calculates the first order taylor series prediction based on the nofr and the derivative
     This prediction is saved to a file (i.e. nofr_pred_1_1_235.0_from_298.dat)
     """
+    print("Predicting NofR")
     pred = []
     taylorfactor=1/(kb*Tp) - 1/(kb*T) # (beta-beta_o)
     # Makes the prediction for each point in the gofr
@@ -141,6 +251,56 @@ def pred_nofr(nofr, dnofr, bl_nofr, bl_dnofr, T, Tp):
     np.savetxt('nofr_pred_'+str(selec1)+"_"+str(selec2)+"_"+str(Tp)+'_from_'+str(int(T))+'.dat', np.c_[dist,pred,err_pred])
     return pred
 
+def calc_dnofr_dp(volgofr, dist, bl_volgofr, L, N):
+    """
+    This piece of code calculates the derivative of the coordination number.
+    This is achieved via a trapezoid rule integration
+    This also calculates the block values of the coordination number
+    and the uncertainty according to a 95% confidence interval
+    as determined by Student's t-distribution
+    """
+    print("Calculating the derivative of nofr")
+    if npt == 0:
+        dpnofr= integrate.cumtrapz(-volgofr*dist**2.*N/L**3.*4*np.pi, dist, initial=0)
+    else:
+        dpnofr= integrate.cumtrapz(-volgofr*dist**2.*N/np.average(L)**3.*4*np.pi, dist, initial=0)
+
+    bl_dpnofr=[]
+    for i in range(1,nblocks+1):
+        if npt == 0:
+            bl_dpnofr.append(integrate.cumtrapz(-bl_volgofr[i-1]*dist**2.*N/L**3.*4*np.pi, dist, initial=0))
+        else:
+            bstart=int((i-1)*(len(L)-1)/nblocks)
+            bend=int(i*(len(L)-1)/nblocks)
+            bl_dpnofr.append(integrate.cumtrapz(-bl_volgofr[i-1]*dist**2.*N/np.average(L[bstart:bend])**3.*4*np.pi, dist, initial=0))
+
+    err_dpnofr = np.std(bl_dpnofr,axis=0)*t_val # Note: t_val includes the 1/sqrt(nblocks) factor implicitly
+    np.savetxt('dnofr_dp_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dist, dpnofr, err_dpnofr])
+    return dpnofr, bl_dpnofr
+
+def pred_nofr_pdep(nofr, dpnofr, bl_nofr, bl_dpnofr, P, Pp):
+    """
+    This function calculates the first order taylor series prediction based on the nofr and the derivative
+    This prediction is saved to a file (i.e. nofr_pred_P_1_1_1000.0_from_1.dat)
+    """
+    print("Predicting NofR")
+    pred = []
+    taylorfactor=Pp-P # (beta-beta_o)
+    # Makes the prediction for each point in the gofr
+    for i in range(len(gofr)):
+        pred.append(nofr[i]+dpnofr[i]*taylorfactor)
+    # Block averaging
+    bl_pred = []
+    for b in range(nblocks):
+        tmp_pred = []
+        for i in range(len(bl_nofr[b])):
+            tmp_pred.append(bl_nofr[b][i]+bl_dpnofr[b][i]*taylorfactor)
+        bl_pred.append(tmp_pred)
+    err_pred = np.std(bl_pred, axis=0)*t_val
+    # Saves the result to a file (i.e. gofr_pred_1_1_235.0_from_298.dat)
+    np.savetxt('nofr_pred_P_'+str(selec1)+"_"+str(selec2)+"_"+str(Pp)+'_from_'+str(int(P))+'.dat', np.c_[dist,pred,err_pred])
+    return pred
+
 
 def peak_find(dist, gofr, nofr, thresh):
     """
@@ -151,6 +311,7 @@ def peak_find(dist, gofr, nofr, thresh):
     
     This code writes these values to both the screen, and to a minimum and maximum file.
     """
+    print("Finding peaks in the RDF")
     # Maxima
     mlocs, dict =  find_peaks(gofr, threshold=thresh, height=1)
     maxvals = []
@@ -190,6 +351,7 @@ def calc_PMF(dist, gofr, bl_gofr, T):
     The PMF is defined as PMF = -kb*T*log[RDF]
     This is written to a file (i.e. pmf_1_1_298.dat)
     """
+    print("Calculating the PMF")
     PMF = []
     pdist=[]
     c=0
@@ -210,13 +372,14 @@ def calc_PMF(dist, gofr, bl_gofr, T):
     np.savetxt("pmf_"+str(selec1)+"_"+str(selec2)+'_'+str(int(T))+".dat", np.c_[dist[c:], PMF,err_pmf])
     return PMF, c, bl_pmf
 
-def calc_PMF_deriv(PMF, dist, gofr, egofr, bl_gofr, bl_egofr, bl_PMF,T):
+def calc_dPMF_db(PMF, dist, gofr, egofr, bl_gofr, bl_egofr, bl_PMF,T):
     """
     This script calculates the first derivative of the PMF
     The derivative is defined as:
     kb*T*(eRDF/RDF - PMF)
     This is written to a file(i.e. dpmf_1_1_298.dat)
     """
+    print("Calculating the PMF T-derivative")
     dPMF = []
     for i in range(len(PMF)):
         dPMF.append(kb*T*(egofr[i]/gofr[i]-PMF[i]))
@@ -230,13 +393,14 @@ def calc_PMF_deriv(PMF, dist, gofr, egofr, bl_gofr, bl_egofr, bl_PMF,T):
     np.savetxt("dpmf_"+str(selec1)+"_"+str(selec2)+'_'+str(int(T))+".dat", np.c_[dist, dPMF, err_dPMF])
     return dPMF, bl_dPMF
 
-def pred_PMF(dist, PMF, dPMF,bl_PMF, bl_dPMF, T, Tp):
+def pred_PMF_Tdep(dist, PMF, dPMF,bl_PMF, bl_dPMF, T, Tp):
     """
     This script makes predictions of the PMF at other temperature(s) Tp from the simulation temperature T
     This is done by a standard taylor series expansion out to **one** term
     PMF(beta) = PMF(beta_o) + dPMF/dbeta|beta_o*(beta-beta_o)
     This is written to a file (i.e. pmf_pred_1_1_235.0_from_298.dat)
     """
+    print("Predicting the PMF at %s" % Tp)
     pred = []
     taylorfactor=1/(kb*Tp)-1/(kb*T)
     print(taylorfactor)
@@ -259,6 +423,7 @@ def calc_dS(PMF, dPMF,bl_PMF,bl_dPMF, dist, T):
     dS = 1/(kb*T^2)*(dPMF/dbeta + 2*(kb*T)^2 * log[r])
     Results are written to a file (i.e. dS_1_1.dat)
     """
+    print("Calcuating the entropy change")
     dS = []
     for i in range(len(PMF)):
         dS.append(1/(kb*T**2.)*(dPMF[i]+2*(kb*T)**2.*np.log(dist[i])))
@@ -278,9 +443,14 @@ def calc_sconfig(dist, gofr, bl_gofr):
     s2/N = -4*PI/2*N^2*kb/V*int r^2*dr*(g(r)ln[g(r)]-g(r)+1)
     Results are written to a file (i.e. s2_1_1.dat)
     """
+    print("Calculating the configurational entropy")
     val=[]
     dred=[]
-    V=L**3.0
+    if npt == 0:
+        V=L**3.0
+    else:
+        V=np.average(L)**3.0
+
     # Total Calculation
     for i in range(len(gofr)):
         if gofr[i] > 0.0:
@@ -290,15 +460,21 @@ def calc_sconfig(dist, gofr, bl_gofr):
     np.savetxt('s2_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dred, s2])
     bl_s2 = []
     # Block Calculation
-    for b in range(len(bl_gofr)):
+    for b in range(nblocks):
         tmp_val = []
+        bstart=int(b*(len(L)-1)/nblocks)
+        bend=int((b+1)*(len(L)-1)/nblocks)
         for i in range(len(bl_gofr[b])):
             if gofr[i] > 0.0:
                 if bl_gofr[b][i] <= 0.0: # This makes sure it isn't less than or equal to zero
                     tmp_val.append(0)
                 else:
                     tmp_val.append(dist[i]**2*(bl_gofr[b][i]*np.log(bl_gofr[b][i])-bl_gofr[b][i]+1))
-        bl_s2.append(-(4*np.pi)/2*N/V*kb*integrate.cumtrapz(tmp_val, dred,initial=0))
+        if npt == 0:
+            bl_s2.append(-(4*np.pi)/2*N/V*kb*integrate.cumtrapz(tmp_val, dred,initial=0))
+        else:
+            V=np.average(L[bstart:bend])**3.0
+            bl_s2.append(-(4*np.pi)/2*N/V*kb*integrate.cumtrapz(tmp_val, dred,initial=0))
         err_s2 = np.std(bl_s2, axis=0)*t_val
 
         # Writes to a file
@@ -306,7 +482,9 @@ def calc_sconfig(dist, gofr, bl_gofr):
 
     return s2
 
-def calc_dsconfig(dist, gofr, bl_gofr):
+
+def calc_dsconfig_db(dist, gofr, bl_gofr):
+    print("Calculating the derivative of s2")
     return
 
     
@@ -323,28 +501,35 @@ kb=0.0019872041 #kcal/mol
 
 # Command Line Input
 parser = argparse.ArgumentParser()
-parser.add_argument('-p', default=0, help='[0] No plot [1] Plots in matplotlib')
-parser.add_argument('-selec1',default=1, help='Selection1')
-parser.add_argument('-selec2', default=1, help='Selection2')
+parser.add_argument('-plot', default=0, help='[0] No plot [1] Plots in matplotlib')
+parser.add_argument('-f', default="gofr.inp", help="Namelist file for the fortran code, extracts L, selec1, selec2")
+parser.add_argument('-selec1',default=0, help='Selection1')
+parser.add_argument('-selec2', default=0, help='Selection2')
 parser.add_argument('-nblocks',default=5, help='Number of blocks')
-parser.add_argument('-L', default=21.752, help='Box side length')
 parser.add_argument('-N', default=343, help='Number of atoms')
-parser.add_argument('-T', default=298.15, help='Temperature')
-parser.add_argument('-Tpred', default=[], help='Temperature to predict',action='append')
-parser.add_argument('-thresh', help='Threshold for peak finding')
+parser.add_argument('-T', default=298.15, help='Temperature (K)')
+parser.add_argument('-Tpred', default=[], help='Temperature (K) to predict',action='append')
+parser.add_argument('-thresh', default=0.05, help='Threshold for peak finding')
+parser.add_argument('-P', default=1.0, help="Pressure (bar)")
+parser.add_argument('-Ppred', default=[], help='Pressure (bar) to predict', action='append')
 parser.add_argument('-ew', default=0, help='Energy Weighting [0] off [1] on')
+parser.add_argument('-vw', default=0, help='Volume Weighting [0] off [1] on')
 parser.add_argument('-graphmovie', default=0, help='Make movie [0] off [1] on')
 args = parser.parse_args()
 selec1  = str(args.selec1)
 selec2  = str(args.selec2)
 nblocks = int(args.nblocks)
-L       = float(args.L)
 N       = int(args.N)
 T       = float(args.T)
 Tp      = args.Tpred
+P       = float(args.P)
+Pp      = args.Ppred
 ew      = int(args.ew)
+vw      = int(args.vw)
 graphmovie = int(args.graphmovie)
-pltflag = int(args.p)
+pltflag = int(args.plot)
+
+L, selec1, selec2, npt=read_input(str(args.f), selec1, selec2)
 
 
 for i in range(len(Tp)):
@@ -359,18 +544,7 @@ t_val=stats.t.ppf(0.975,nblocks-1)/np.sqrt(nblocks)
 
 
 # Read GofR
-dist, gofr, bl_gofr, err_gofr = read_gofr(t_val,selec1, selec2, nblocks)
-
-# Read dHGofR
-if ew == 1:
-    egofr, bl_egofr, err_egofr, e2gofr = read_egofr(t_val, selec1, selec2, nblocks)
-    pGofR =  []
-    if graphmovie == 0:
-        for tp in Tp:
-            pGofR.append(pred_gofr(gofr, egofr, e2gofr, bl_gofr, bl_egofr, T, float(tp)))
-    else:
-        for tp in range(220,400):
-            pGofR.append(pred_gofr(gofr, egofr,e2gofr, bl_gofr, bl_egofr, T, float(tp)))
+dist, gofr, bl_gofr, err_gofr = read_gofr(t_val,selec1, selec2)
 
 # Calculates the Coordination Number
 nofr, bl_nofr = calc_nofr(gofr, dist, bl_gofr, L, N)
@@ -384,27 +558,64 @@ PMF, c, bl_PMF = calc_PMF(dist,gofr, bl_gofr, T)
 # Calculates the configurational entropy
 s2 = calc_sconfig(dist, gofr, bl_gofr)
 
-# Calculates the Derivative of the PMF
+
+# Temperature Derivative Calculations
 if ew == 1:
-    dnofr, bl_dnofr = calc_dnofr(egofr, dist, bl_egofr, L, N)
+    # Reads beta derivative stuff, and makes GofR prediction
+    egofr, bl_egofr, err_egofr, e2gofr = read_egofr(t_val, selec1, selec2)
+    pGofR =  []
+    if graphmovie == 0:
+        for tp in Tp:
+            pGofR.append(pred_gofr_Tdep(gofr, egofr, e2gofr, bl_gofr, bl_egofr, T, float(tp)))
+    else:
+        for tp in range(220,400):
+            pGofR.append(pred_gofr_Tdep(gofr, egofr,e2gofr, bl_gofr, bl_egofr, T, float(tp)))
+    # Calculates NofR derivative and predicts it!
+    dnofr, bl_dnofr = calc_dnofr_db(egofr, dist, bl_egofr, L, N)
     pnofr = []
     for tp in Tp:
-        pnofr.append(pred_nofr(nofr,dnofr,bl_nofr, bl_dnofr, T, float(tp)))
+        pnofr.append(pred_nofr_Tdep(nofr,dnofr,bl_nofr, bl_dnofr, T, float(tp)))
 
     bl_cutgofr = [ bl_gofr[b][c:] for b in range(nblocks) ]
     bl_cutegofr = [ bl_egofr[b][c:] for b in range(nblocks) ]
-    dPMF,bl_dPMF=calc_PMF_deriv(PMF, dist[c:], gofr[c:], egofr[c:], bl_cutgofr, bl_cutegofr, bl_PMF, T)
-
-# Makes PMF Prediction
-if ew == 1:
+    dPMF,bl_dPMF=calc_dPMF_db(PMF, dist[c:], gofr[c:], egofr[c:], bl_cutgofr, bl_cutegofr, bl_PMF, T)
+    # PMF Predictions
     pPMF =  []
     for tp in Tp:
-        pPMF.append(pred_PMF(dist[c:], PMF, dPMF,bl_PMF,bl_dPMF, T, tp))
+        pPMF.append(pred_PMF_Tdep(dist[c:], PMF, dPMF,bl_PMF,bl_dPMF, T, tp))
 
-# Calculates Entropy Derivative
-if ew == 1:
+    # Calculates Entropy Derivative
     dS = calc_dS(PMF, dPMF,bl_PMF,bl_dPMF, dist[c:], T)
 
+
+# Pressure Derivative Calculations!
+if vw == 1:
+    # Reads in derivative correlation function and Predicts it.
+    volgofr, bl_volgofr, err_volgofr, vol2gofr = read_volgofr(t_val, selec1, selec2)
+    pGofR_P = []
+    if graphmovie == 0:
+        for pp in Pp:
+            pGofR_P.append(pred_gofr_Pdep(gofr,volgofr, vol2gofr, bl_gofr, bl_volgofr, P, float(pp)))
+    else:
+        for pp in range(1,10000,200):
+            pGofr_P.append(pred_gofr_Pdep(gofr, volgofr, vol2gofr, bl_gofr, bl_volgofr, P, float(pp)))
+
+    # Calculates NofR Derivative and Predicts it
+    dpnofr, bl_dpnofr = calc_dnofr_dp(volgofr, dist, bl_volgofr, L, N)
+    pnofr_P = []
+    for pp in Pp:
+        pnofr_P.append(pred_nofr_pdep(nofr,dpnofr,bl_nofr, bl_dpnofr, P, float(pp)))
+    # Creates cut arrays for PMF
+    bl_cutgofr = [ bl_gofr[b][c:] for b in range(nblocks) ]
+    bl_cutvolgofr = [ bl_volgofr[b][c:] for b in range(nblocks) ]
+    # Calculates PMF derivative and predicts it
+"""
+    dPMF,bl_dPMF=calc_dPMF_db(PMF, dist[c:], gofr[c:], egofr[c:], bl_cutgofr, bl_cutvolgofr, bl_PMF, T)
+    pPMF_P =  []
+    for pp in Pp:
+        pPMF_P.append(pred_PMF_Tdep(dist[c:], PMF, dpPMF,bl_PMF,bl_dpPMF, T, tp))
+"""
+    
 if pltflag == 1:
     plt.plot(dmax,maxvals,'bs')
     plt.plot(dmin,minvals,'rs')

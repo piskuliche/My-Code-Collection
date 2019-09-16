@@ -397,7 +397,7 @@ Program pairdist
         write(blstr, "(I0)") j
         open(20+j,file='bl_'//trim(blstr)//'_pairdist_'//trim(censtr)//'_'//trim(outstr)//'.dat')
         if (eweight == 1) then
-            open(42+j,file='bl_'//trim(blstr)//'_epairdist_'//trim(censtr)//'_'//trim(outstr)//'.dat')
+            open(42+j,file='bl_'//trim(blstr)//'_'//trim(etype)//'pairdist_'//trim(censtr)//'_'//trim(outstr)//'.dat')
         endif
         do b=1,nb
             write(20+j,'(2f15.8)' ) (REAL(b)-0.5)*dr, bl_gofr(b)
