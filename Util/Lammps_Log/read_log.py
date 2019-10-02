@@ -52,7 +52,10 @@ for r in range(len(runs)):
     nitems = len(runs[r][items[0]])-1
     nperb = int(nitems/nblocks)
     t_val=stats.t.ppf(0.975,nblocks-1)/np.sqrt(nblocks)
+
     for item in items:
+        if r == len(runs)-1:
+            np.savetxt(str(item)+'_init.out', np.c_[runs[r][item]])
         bl = []
         for b in range(nblocks):
             bstart = b*nperb + 1

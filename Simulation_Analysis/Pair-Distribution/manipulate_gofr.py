@@ -24,6 +24,8 @@ def read_input(fname, selec1, selec2):
     if L == 0.0:
         npt = 1
         L = np.genfromtxt("L.dat", usecols=0)
+    else:
+        npt=0
     return L, selec1, selec2, npt
 
 
@@ -91,7 +93,7 @@ def read_volgofr(t_val,selec1, selec2):
     # Read in volRDF
     # Read in eRDF
     fstring="volpairdist_"+selec1+"_"+selec2+".dat"
-    dist, volgofr, vol2gofr = np.genfromtxt(fstring, usecols=(0,1,2), unpack=True)
+    dist, volgofr, vol2gofr,vol3gofr = np.genfromtxt(fstring, usecols=(0,1,2,3), unpack=True)
     # Need to add in the extra factor of -beta
     kb_JK=1.380648E-23
     AperM=1E10
@@ -99,6 +101,7 @@ def read_volgofr(t_val,selec1, selec2):
     InvSi_to_invBar = (1/(kb_JK*T))*(1/AperM)**3.*PaperBar 
     volgofr=volgofr*InvSi_to_invBar # Units = bar^-1
     vol2gofr=vol2gofr*InvSi_to_invBar**2.0 # Units = bar^-2
+    vol3gofr=vol3gofr*InvSi_to_invBar**3.0 # Unites = bar^-3
     # Reads in block volRDF
     bl_volgofr = []
     for i in range(1,nblocks+1):
@@ -107,7 +110,9 @@ def read_volgofr(t_val,selec1, selec2):
 
     err_volgofr = np.std(bl_volgofr,axis=0)*t_val
     np.savetxt('volRDF_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dist,volgofr,err_volgofr])
-    return volgofr, bl_volgofr, err_volgofr,vol2gofr
+    np.savetxt('vol2RDF_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dist,vol2gofr])
+    np.savetxt('vol3RDF_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dist,vol3gofr])
+    return volgofr, bl_volgofr, err_volgofr,vol2gofr,vol3gofr
 
 def pred_gofr_Tdep(gofr, egofr,e2gofr, bl_gofr, bl_egofr, T, Tp):
     """
@@ -121,11 +126,13 @@ def pred_gofr_Tdep(gofr, egofr,e2gofr, bl_gofr, bl_egofr, T, Tp):
     print("Predicting the RDF")
     pred = []
     pred2 = []
+    #pred3 = []
     taylorfactor=1/(kb*Tp) - 1/(kb*T) # (beta-beta_o)
     # Makes the prediction for each point in the gofr
     for i in range(len(gofr)):
         pred.append(gofr[i]-egofr[i]*taylorfactor)
-        pred2.append(pred[i]+e2gofr[i]*taylorfactor**2.)
+        pred2.append(pred[i]+0.5*e2gofr[i]*taylorfactor**2.)
+        #pred3.append(pred2[i]+(1/6)*e3gofr[i]*taylorfactor**2.)
     # Block averaging
     bl_pred = []
     for b in range(nblocks):
@@ -136,12 +143,16 @@ def pred_gofr_Tdep(gofr, egofr,e2gofr, bl_gofr, bl_egofr, T, Tp):
     err_pred = np.std(bl_pred, axis=0)*t_val
     # Saves the result to a file (i.e. gofr_pred_1_1_235.0_from_298.dat)
     if graphmovie == 0:
-        np.savetxt('gofr_pred_'+str(selec1)+"_"+str(selec2)+"_"+str(Tp)+'_from_'+str(int(T))+'.dat', np.c_[dist,pred,err_pred,pred2])
+        np.savetxt('gofr_pred_T_'+str(selec1)+"_"+str(selec2)+"_"+str(Tp)+'_from_'+str(int(T))+'.dat', np.c_[dist,pred,err_pred,pred2])
+        for b in range(nblocks):
+            np.savetxt('bl_'+str(b)+'_gofr_pred_T_'+str(selec1)+'_'+str(selec2)+'_'+str(Tp)+'_from_'+str(int(T))+'.dat',np.c_[dist, bl_pred[b]])
     else:
         np.savetxt('gofr_frame_'+str(int(Tp))+'.dat', np.c_[dist,pred,err_pred])
+    print(len(gofr), len(pred))
+    pred_sconfig_Tdep(dist,pred,bl_pred, Tp)
     return pred
 
-def pred_gofr_Pdep(gofr, volgofr,vol2gofr, bl_gofr, bl_volgofr, P, Pp):
+def pred_gofr_Pdep(gofr, volgofr,vol2gofr,vol3gofr, bl_gofr, bl_volgofr, P, Pp):
     """
     This function calculates the first order taylor series prediction based on the gofr and the derivative
     Note: egofr = <dH delta(r-r')> = - d(RDF)/d(beta)
@@ -153,11 +164,13 @@ def pred_gofr_Pdep(gofr, volgofr,vol2gofr, bl_gofr, bl_volgofr, P, Pp):
     print("Predicting the RDF")
     pred = []
     pred2 = []
+    pred3 = []
     taylorfactor=(Pp-P) # (beta-beta_o)
     # Makes the prediction for each point in the gofr
     for i in range(len(gofr)):
         pred.append(gofr[i]-volgofr[i]*taylorfactor)
         pred2.append(pred[i]+0.5*vol2gofr[i]*taylorfactor**2.)
+        pred3.append(pred2[i]+(1/6)*vol3gofr[i]*taylorfactor**3.)
     # Block averaging
     bl_pred = []
     for b in range(nblocks):
@@ -168,7 +181,7 @@ def pred_gofr_Pdep(gofr, volgofr,vol2gofr, bl_gofr, bl_volgofr, P, Pp):
     err_pred = np.std(bl_pred, axis=0)*t_val
     # Saves the result to a file (i.e. gofr_pred_1_1_235.0_from_298.dat)
     if graphmovie == 0:
-        np.savetxt('gofr_pred_P_'+str(selec1)+"_"+str(selec2)+"_"+str(Pp)+'_from_'+str(int(P))+'.dat', np.c_[dist,pred,err_pred,pred2])
+        np.savetxt('gofr_pred_P_'+str(selec1)+"_"+str(selec2)+"_"+str(Pp)+'_from_'+str(int(P))+'.dat', np.c_[dist,pred,err_pred,pred2,pred3])
     else:
         np.savetxt('gofr_pframe_'+str(int(Pp))+'.dat', np.c_[dist,pred,err_pred])
     return pred
@@ -453,42 +466,131 @@ def calc_sconfig(dist, gofr, bl_gofr):
 
     # Total Calculation
     for i in range(len(gofr)):
+        if gofr[i] <= 0.0:
+            val.append(0.0)
+        else:
+            val.append(dist[i]**2*(gofr[i]*np.log(gofr[i])-gofr[i]+1))
+    s2=-(4*np.pi)/2*N/V*kb*integrate.cumtrapz(val, dist,initial=0)
+    np.savetxt('s2_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dist, s2])
+    bl_s2 = []
+    # Block Calculation
+    tb = []
+    for b in range(nblocks):
+        tmp_val = []
+        for i in range(len(bl_gofr[b])):
+            if bl_gofr[b][i] <= 0.0: # This makes sure it isn't less than or equal to zero
+                tmp_val.append(0)
+            else:
+                tmp_val.append(dist[i]**2*(bl_gofr[b][i]*np.log(bl_gofr[b][i])-bl_gofr[b][i]+1))
+        if npt == 0:
+            bl_s2.append(-(4*np.pi)/2*N/V*kb*integrate.cumtrapz(tmp_val, dist,initial=0))
+        else:
+            bstart=int(b*(len(L)-1)/nblocks)
+            bend=int((b+1)*(len(L)-1)/nblocks)
+            V=np.average(L[bstart:bend])**3.0
+            bl_s2.append(-(4*np.pi)/2*N/V*kb*integrate.cumtrapz(tmp_val, dist,initial=0))
+
+        np.savetxt('bl_'+str(b)+'_s2_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dist, bl_s2[b]])
+        tb.append(bl_s2[b][-1])
+    err_tb = np.std(tb)*t_val
+    print("Configurational Entropy %s %s" % ( np.average(tb), err_tb))
+   
+    f=open('s2_val_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', 'w')
+    f.write('%s %s %s\n' % (T, np.average(tb), err_tb))
+    f.close()
+
+    err_s2 = np.std(bl_s2, axis=0)*t_val
+
+    # Writes to a file
+    np.savetxt('s2_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dist, s2, err_s2])
+
+    return s2
+
+
+def calc_dsconfig_db(dist, gofr, bl_gofr, dgofr, bl_dgofr):
+    """
+    This calculates the beta derivative of the configurational entropy s2.
+    \frac{\partial s2}{\partial\beta}=-\frac{4\pi N k_B}{V}\int_0^\infty r^2 dr \frac{\partial g(r)}{\partial \beta}\ln{g(r)}
+    """
+    print("Calculating the derivative of s2")
+    val=[]
+    dred=[]
+    if npt == 0:
+        V=L**3.0
+    else:
+        V=np.average(L)**3.0
+
+    for i in range(len(gofr)):
         if gofr[i] > 0.0:
             dred.append(dist[i])
-            val.append(dist[i]**2*(gofr[i]*np.log(gofr[i])-gofr[i]+1))
-    s2=-(4*np.pi)/2*N/V*kb*integrate.cumtrapz(val, dred,initial=0)
-    np.savetxt('s2_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dred, s2])
-    bl_s2 = []
+            val.append(dist[i]**2*(dgofr[i]*np.log(gofr[i])))
+    ds2 = -(4*np.pi)/2*N/V*kb*integrate.cumtrapz(val, dred, initial=0)
+    np.savetxt('ds2_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dred,ds2])
+    bl_ds2 = []
+    dtb = []
     # Block Calculation
     for b in range(nblocks):
         tmp_val = []
-        bstart=int(b*(len(L)-1)/nblocks)
-        bend=int((b+1)*(len(L)-1)/nblocks)
         for i in range(len(bl_gofr[b])):
             if gofr[i] > 0.0:
                 if bl_gofr[b][i] <= 0.0: # This makes sure it isn't less than or equal to zero
                     tmp_val.append(0)
                 else:
-                    tmp_val.append(dist[i]**2*(bl_gofr[b][i]*np.log(bl_gofr[b][i])-bl_gofr[b][i]+1))
+                    tmp_val.append(dist[i]**2*bl_dgofr[b][i]*np.log(bl_gofr[b][i]))
         if npt == 0:
-            bl_s2.append(-(4*np.pi)/2*N/V*kb*integrate.cumtrapz(tmp_val, dred,initial=0))
+            bl_ds2.append(-(4*np.pi)/2*N/V*kb*integrate.cumtrapz(tmp_val, dred,initial=0))
         else:
+            bstart=int(b*(len(L)-1)/nblocks)
+            bend=int((b+1)*(len(L)-1)/nblocks)
             V=np.average(L[bstart:bend])**3.0
-            bl_s2.append(-(4*np.pi)/2*N/V*kb*integrate.cumtrapz(tmp_val, dred,initial=0))
-        err_s2 = np.std(bl_s2, axis=0)*t_val
+            bl_ds2.append(-(4*np.pi)/2*N/V*kb*integrate.cumtrapz(tmp_val, dred,initial=0))
+        dtb.append(bl_ds2[b][-1])
 
-        # Writes to a file
-        np.savetxt('s2_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dred, s2, err_s2])
+    errdtb = np.std(dtb)*t_val
+    print("Derivative of configurational entropy %s %s" % (np.average(dtb), errdtb))
+    f=open('ds2_val_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', 'w')
+    f.write('%s %s %s\n' % (T, np.average(dtb), errdtb))
+    f.close()
 
-    return s2
+    err_ds2 = np.std(bl_ds2, axis=0)*t_val
 
-
-def calc_dsconfig_db(dist, gofr, bl_gofr):
-    print("Calculating the derivative of s2")
-    return
-
+    # Writes to a file
+    np.savetxt('ds2_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dred, ds2, err_ds2])
     
+    return ds2
 
+def pred_sconfig_Tdep(dist,predgofr,bl_predgofr,Tp):
+    """This takes the predicted gofr, and then uses it to recalculate the s2"""
+    print("Predicting the configurational entropy")
+    val=[]
+    dred=[]
+    if npt == 0:
+        V=L**3.0
+    else:
+        V=np.average(L)**3.0
+    # Total Calculation
+    for i in range(len(predgofr)):
+        if predgofr[i] <= 0.0:
+            val.append(0.0)
+        else:
+            val.append(dist[i]**2*(predgofr[i]*np.log(predgofr[i])-predgofr[i]+1))
+    ps2=-(4*np.pi)/2*N/V*kb*integrate.cumtrapz(val, dist,initial=0)[-1]
+    blps2=[]
+    for b in range(nblocks):
+        blval=[]
+        for i in range(len(bl_predgofr[b])):
+            if bl_predgofr[b][i]<= 0.0:
+                blval.append(0)
+            else:
+                blval.append(dist[i]**2*(bl_predgofr[b][i]*np.log(bl_predgofr[b][i])-bl_predgofr[b][i]+1))
+        tmp = -(4*np.pi)/2*N/V*kb*integrate.cumtrapz(blval, dist,initial=0)
+        blps2.append(-(4*np.pi)/2*N/V*kb*integrate.cumtrapz(blval, dist,initial=0)[-1])
+    ps2err = np.std(blps2)*t_val
+
+
+    f=open('s2_pred_T_'+str(selec1)+"_"+str(selec2)+"_"+str(Tp)+'_from_'+str(int(T))+'.dat', 'w')
+    f.write('%s %s %s\n' % (Tp, ps2,ps2err))
+    f.close()
 
 import numpy as np
 import argparse, math
@@ -586,19 +688,19 @@ if ew == 1:
 
     # Calculates Entropy Derivative
     dS = calc_dS(PMF, dPMF,bl_PMF,bl_dPMF, dist[c:], T)
-
+    calc_dsconfig_db(dist, gofr, bl_gofr,egofr,bl_egofr)
 
 # Pressure Derivative Calculations!
 if vw == 1:
     # Reads in derivative correlation function and Predicts it.
-    volgofr, bl_volgofr, err_volgofr, vol2gofr = read_volgofr(t_val, selec1, selec2)
+    volgofr, bl_volgofr, err_volgofr, vol2gofr,vol3gofr = read_volgofr(t_val, selec1, selec2)
     pGofR_P = []
     if graphmovie == 0:
         for pp in Pp:
-            pGofR_P.append(pred_gofr_Pdep(gofr,volgofr, vol2gofr, bl_gofr, bl_volgofr, P, float(pp)))
+            pGofR_P.append(pred_gofr_Pdep(gofr,volgofr, vol2gofr,vol3gofr, bl_gofr, bl_volgofr, P, float(pp)))
     else:
         for pp in range(1,10000,200):
-            pGofr_P.append(pred_gofr_Pdep(gofr, volgofr, vol2gofr, bl_gofr, bl_volgofr, P, float(pp)))
+            pGofr_P.append(pred_gofr_Pdep(gofr, volgofr, vol2gofr,vol3gofr, bl_gofr, bl_volgofr, P, float(pp)))
 
     # Calculates NofR Derivative and Predicts it
     dpnofr, bl_dpnofr = calc_dnofr_dp(volgofr, dist, bl_volgofr, L, N)

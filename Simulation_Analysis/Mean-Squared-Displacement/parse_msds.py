@@ -125,7 +125,9 @@ if __name__ == "__main__":
     # Calculates the Diffusion coefficients for the COM
     d_cm, d_std = D_from_MSD(time[0], cm_msd_av, cm_msd, startskip, endskip, nblocks, molname, label, t_val)
     print("Diffusion %s: %2.4e +/- %2.4e" % (label,d_cm, d_std))
-
+    f=open(str(molname)+'_diffusion.dat', 'w')
+    f.write("%s %2.4e %2.4e\n" % (label, d_cm, d_std))
+    f.close()
     
     print("All MSDs have been parsed")
 

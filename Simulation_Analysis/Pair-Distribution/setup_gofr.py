@@ -78,65 +78,42 @@ def read_log(filename, ecol, volcol):
 
     
 if __name__ == "__main__":
-    import sys
+    import sys,argparse
     realL=-1
-    filename = "-h"
-    if len(sys.argv) < 3:
-        print("Usage: setup_gofr.py filename dr [selec1 selec2] [startconfig endconfig or_int] [startskip endskip realL ecol volcol log]")
-        sys.exit()
-    filename = str(sys.argv[1])
-    if filename == "-h":
-        print("Usage: setup_gofr.py filename dr [selec1 selec2] [startconfig endconfig or_int] [startskip endskip realL ecol volcol log]")
-        sys.exit()
-    dr = float(sys.argv[2])
-    if len(sys.argv) > 3 and len(sys.argv) <= 5:
-        selec1 = int(sys.argv[3])
-        selec2 = int(sys.argv[4])
-        startconfig=0
-        endconfig=1000
-        or_int=1
-        startskip=2
-        endskip=0
-        realL=-5
-        ecol=2
-        volcol=11
-        logname="log.lammps"
-    elif len(sys.argv) > 5 and len(sys.argv) <= 8:
-        selec1 = int(sys.argv[3])
-        selec2 = int(sys.argv[4])
-        startconfig = int(sys.argv[5])
-        endconfig = int(sys.argv[6])
-        or_int = int(sys.argv[7])
-        startskip=2
-        endskip=0
-        realL=-5
-        ecol=2
-        volcol=11
-        logname="log.lammps"
-    elif len(sys.argv) > 8:
-        selec1 = int(sys.argv[3])
-        selec2 = int(sys.argv[4])
-        startconfig = int(sys.argv[5])
-        endconfig = int(sys.argv[6])
-        or_int = int(sys.argv[7])
-        startskip = int(sys.argv[8])
-        endskip = int(sys.argv[9])
-        realL = float(sys.argv[10])
-        ecol = int(sys.argv[11])
-        volcol = int(sys.argv[12])
-        logname = str(sys.argv[13])
-    else: 
-        selec1 = 1
-        selec2 = 1
-        startconfig=0
-        endconfig=1000
-        or_int=1
-        startskip=2
-        endskip=0
-        realL = -5
-        ecol=2
-        volcol=11
-        logname="log.lammps"
+
+    # Read in input parameters
+    parser=argparse.ArgumentParser()
+    parser.add_argument('-f', default="data.lmps", help='Data file name')
+    parser.add_argument('-dr', default=0.1, help='Shell thickness')
+    parser.add_argument('-s1', default=1, help='First atom selection')
+    parser.add_argument('-s2', default=1, help='Second atom selection')
+    parser.add_argument('-sconfig', default=0, help='Starting frame for calculation')
+    parser.add_argument('-econfig', default=1000, help='Ending frame for calculation')
+    parser.add_argument('-or_int', default=1, help='Every nth frame should be used')
+    parser.add_argument('-sskip', default=2, help='Number of lines to skip at frame start')
+    parser.add_argument('-eskip', default=0, help='Number of lines to skip at frame end')
+    parser.add_argument('-realL', default=-5.0, help='Box length in Angstroms')
+    parser.add_argument('-ecol', default=2, help='Location of energy in log file')
+    parser.add_argument('-volcol', default=10, help='Location of volume in log file')
+    parser.add_argument('-logname', default="log.lammps", help='Name of log file')
+    args = parser.parse_args()
+
+    filename=str(args.f)
+    dr=float(args.dr)
+    selec1=int(args.s1)
+    selec2=int(args.s2)
+    startconfig=int(args.sconfig)
+    endconfig=int(args.econfig)
+    or_int=int(args.or_int)
+    startskip=int(args.sskip)
+    endskip=int(args.eskip)
+    realL=float(args.realL)
+    ecol=int(args.ecol)
+    volcol=int(args.volcol)
+    logname=str(args.logname)
+    
+
+
     natoms, L = read_mols(filename)
     if realL > 0:
         L = realL
