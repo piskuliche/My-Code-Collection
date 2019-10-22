@@ -54,7 +54,7 @@ def read_gofr(t_val,selec1, selec2):
     np.savetxt('RDF_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dist,gofr,err_gofr])
     return dist, gofr, bl_gofr, err_gofr
 
-def read_egofr(t_val,selec1, selec2):
+def read_egofr(t_val,selec1, selec2,item):
     """
     This function reads in the gofr data (two column distance gofr formatted)
     from a file (i.e. epairdist_1_1.dat)
@@ -66,7 +66,7 @@ def read_egofr(t_val,selec1, selec2):
     """
     print("Reading in the RDF weighted by e")
     # Read in eRDF
-    fstring="epairdist_"+selec1+"_"+selec2+".dat"
+    fstring=str(item)+"pairdist_"+selec1+"_"+selec2+".dat"
     dist, egofr,e2gofr = np.genfromtxt(fstring, usecols=(0,1,2), unpack=True)
 
     # Reads in block eRDF
@@ -76,7 +76,7 @@ def read_egofr(t_val,selec1, selec2):
         bl_egofr.append(np.genfromtxt(bstring+fstring, usecols=1, unpack=True))
 
     err_egofr = np.std(bl_egofr,axis=0)*t_val
-    np.savetxt('eRDF_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dist,egofr,err_egofr])
+    np.savetxt(str(item)+'RDF_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[dist,egofr,err_egofr])
     return egofr, bl_egofr, err_egofr,e2gofr
 
 def read_volgofr(t_val,selec1, selec2):
@@ -366,24 +366,32 @@ def calc_PMF(dist, gofr, bl_gofr, T):
     """
     print("Calculating the PMF")
     PMF = []
+    aofr=[]
     pdist=[]
     c=0
     for i in range(len(gofr)):
         if i > 1 and gofr[i-1] > 0:
             PMF.append(-kb*T*np.log(gofr[i]))
+            aofr.append(-kb*T*np.log(gofr[i])-2*kb*T*np.log(dist[i]))
         else:
             c += 1
 
     bl_pmf = []
+    bl_aofr = []
     for b in range(len(bl_gofr)):
         tmp_pmf = []
+        tmp_aofr = []
         for i in range(len(bl_gofr[b])):
             if i > 1 and gofr[i-1] > 0:
                 tmp_pmf.append(-kb*T*np.log(bl_gofr[b][i]))
+                tmp_aofr.append(-kb*T*np.log(bl_gofr[b][i])-2*kb*T*np.log(dist[i]))
         bl_pmf.append(tmp_pmf)
+        bl_aofr.append(tmp_aofr)
     err_pmf = np.std(bl_pmf,axis=0)*t_val
+    err_aofr = np.std(bl_aofr, axis=0)*t_val
     np.savetxt("pmf_"+str(selec1)+"_"+str(selec2)+'_'+str(int(T))+".dat", np.c_[dist[c:], PMF,err_pmf])
-    return PMF, c, bl_pmf
+    np.savetxt("A_"+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+".dat", np.c_[dist[c:], aofr, err_aofr])
+    return PMF, c, bl_pmf, aofr, bl_aofr
 
 def calc_dPMF_db(PMF, dist, gofr, egofr, bl_gofr, bl_egofr, bl_PMF,T):
     """
@@ -394,19 +402,27 @@ def calc_dPMF_db(PMF, dist, gofr, egofr, bl_gofr, bl_egofr, bl_PMF,T):
     """
     print("Calculating the PMF T-derivative")
     dPMF = []
+    daofr = []
     for i in range(len(PMF)):
         dPMF.append(kb*T*(egofr[i]/gofr[i]-PMF[i]))
+        daofr.append(kb*T*(egofr[i]/gofr[i]-PMF[i])+2*kb**2.*T**2.*np.log(dist[i]))
     bl_dPMF = []
+    bl_daofr = []
     for b in range(len(bl_PMF)):
         tmp_dPMF = []
+        tmp_daofr = []
         for i in range(len(bl_PMF[b])):
             tmp_dPMF.append(kb*T*(bl_egofr[b][i]/bl_gofr[b][i]-bl_PMF[b][i]))
+            tmp_daofr.append(kb*T*(bl_egofr[b][i]/bl_gofr[b][i]-bl_PMF[b][i])+2*kb**2.*T**2.*np.log(dist[i]))
         bl_dPMF.append(tmp_dPMF)
+        bl_daofr.append(tmp_daofr)
     err_dPMF = np.std(bl_dPMF,axis=0)*t_val
+    err_daofr = np.std(bl_daofr, axis=0)*t_val
     np.savetxt("dpmf_"+str(selec1)+"_"+str(selec2)+'_'+str(int(T))+".dat", np.c_[dist, dPMF, err_dPMF])
-    return dPMF, bl_dPMF
+    np.savetxt("dA_"+str(selec1)+"_"+str(selec2)+'_'+str(int(T))+".dat", np.c_[dist, daofr, err_daofr])
+    return dPMF, bl_dPMF, daofr, bl_daofr
 
-def pred_PMF_Tdep(dist, PMF, dPMF,bl_PMF, bl_dPMF, T, Tp):
+def pred_PMF_Tdep(dist, PMF, dPMF, bl_PMF, bl_dPMF, T, Tp):
     """
     This script makes predictions of the PMF at other temperature(s) Tp from the simulation temperature T
     This is done by a standard taylor series expansion out to **one** term
@@ -430,11 +446,36 @@ def pred_PMF_Tdep(dist, PMF, dPMF,bl_PMF, bl_dPMF, T, Tp):
     np.savetxt('pmf_pred_'+str(selec1)+'_'+str(selec2)+'_'+str(Tp)+'_from_'+str(int(T))+'.dat', np.c_[dist,pred,err_pmfpred])
     return pred
 
+def pred_AofR_Tdep(dist, aofr, daofr, bl_aofr, bl_daofr, T, Tp):
+    """
+    This script makes predictions of the aofr at other temperature(s) Tp from the simulation temperature T
+    This is done by a standard taylor series expansion out to **one** term
+    aofr(beta) = aofr(beta_o) + daofr/dbeta|beta_o*(beta-beta_o)
+    This is written to a file (i.e. aofr_pred_1_1_235.0_from_298.dat)
+    """
+    print("Predicting the aofr at %s" % Tp)
+    pred = []
+    taylorfactor=1/(kb*Tp)-1/(kb*T)
+    print(taylorfactor)
+    for i in range(len(PMF)):
+        pred.append(aofr[i]+daofr[i]*taylorfactor)
+    # Block Calculation
+    bl_aofrpred = []
+    for b in range(len(bl_PMF)):
+        tmp_paofr = []
+        for i in range(len(bl_aofr[b])):
+            tmp_paofr.append(bl_aofr[b][i]+bl_daofr[b][i]*taylorfactor)
+        bl_aofrpred.append(tmp_paofr)
+    err_aofrpred = np.std(bl_aofrpred,axis=0)*t_val
+    np.savetxt('aofr_pred_'+str(selec1)+'_'+str(selec2)+'_'+str(Tp)+'_from_'+str(int(T))+'.dat', np.c_[dist,pred,err_aofrpred])
+    return pred
+
 def calc_dS(PMF, dPMF,bl_PMF,bl_dPMF, dist, T):
     """
     This is a calculation of the entropy from the derivative of the PMF
     dS = 1/(kb*T^2)*(dPMF/dbeta + 2*(kb*T)^2 * log[r])
     Results are written to a file (i.e. dS_1_1.dat)
+    Units are (kcal/mol)/K
     """
     print("Calcuating the entropy change")
     dS = []
@@ -591,9 +632,148 @@ def pred_sconfig_Tdep(dist,predgofr,bl_predgofr,Tp):
     f=open('s2_pred_T_'+str(selec1)+"_"+str(selec2)+"_"+str(Tp)+'_from_'+str(int(T))+'.dat', 'w')
     f.write('%s %s %s\n' % (Tp, ps2,ps2err))
     f.close()
+    return
+
+def calc_U(r, g, eg, bl_g, bl_eg,item):
+    """
+    This calculates the total energy
+    """
+    U=[]
+    for i in range(len(g)):
+        if g[i] != 0:
+            U.append(eg[i]/g[i])
+        else:
+            U.append(0)
+    bl_U=[]
+    for b in range(len(bl_g)):
+        tmp_U=[]
+        for i in range(len(bl_g[b])):
+            if bl_g[b][i] != 0:
+                tmp_U.append(bl_eg[b][i]/bl_g[b][i])
+            else:
+                tmp_U.append(0)
+        bl_U.append(tmp_U)
+    err_U=np.std(bl_U, axis=0)*t_val
+    np.savetxt('U'+str(item)+'_'+str(selec1)+'_'+str(selec2)+'_'+str(int(T))+'.dat', np.c_[r, U, err_U])
+    return U, bl_U
+
+
+
+def peak_find_simple(r, g, U, A, S,thresh,T):
+    """
+    """
+    print("Finding simple peaks in the RDF")
+    # Maxima
+    mlocs, dict =  find_peaks(g, threshold=thresh, height=1)
+    maxvals = []
+    dmax = []
+    for i in mlocs:
+        maxvals.append(g[i])
+        dmax.append(r[i])
+    minvals = []
+    dmin = []
+    for i in range(len(mlocs)-1):
+        loc = np.where(g == min(g[mlocs[i]:mlocs[i+1]]))[0][0]
+        minvals.append(g[loc])
+        dmin.append(r[loc])
+
+    print("There are %d minimums and %d maximums at temperature %s" % (len(minvals), len(maxvals), T))
+    outpeak(r, U, A, S, dmin, dmax,T)
+    return maxvals, dmax, minvals, dmin
+
+def pred_T(r, g, U, bl_g, bl_U, S, T, Tp):
+    """
+    This is the optimal way to make predictions of the temperature dependence, assuming that U is temperature independent 
+    This is typically a good assumption.
+    g(r;\beta)=g(r;\beta_{298})e^{-(\beta-\beta_{298})\Delta U(r)}
+    """
+    pg      = []
+    bl_pg   = []
+    err_pg  = []
+    pPMF     = []
+    bl_pPMF  = []
+    err_pPMF = []
+    pA       = []
+    bl_pA    = []
+    err_pA  = []
+    r_red   = []
+    beta_Tp = 1/(kb*Tp)
+    beta_T  = 1/(kb*T)
+    c = 0
+    for i in range(len(g)):
+        pg.append(g[i]*np.exp(-U[i]*(beta_Tp - beta_T)))
+        if i > 1 and pg[i-1] > 0:
+            r_red.append(r[i])
+            pPMF.append(-kb*Tp*np.log(pg[i]))
+            pA.append(pPMF[i-c]-2*kb*Tp*np.log(r[i]))
+        else:
+            c += 1
+    
+    for b in range(nblocks):
+        tmp_pg   = []
+        tmp_pPMF = []
+        tmp_pA   = []
+        for i in range(len(bl_g[b])):
+            tmp_pg.append(bl_g[b][i]*np.exp(-bl_U[b][i]*(beta_Tp - beta_T)))
+            if i > 1 and pg[i-1] > 0.0:
+                tmp_pPMF.append(-kb*Tp*np.log(tmp_pg[i]))
+                tmp_pA.append(tmp_pPMF[i-c]-2*kb*Tp*np.log(r[i]))
+        bl_pg.append(tmp_pg)
+        bl_pPMF.append(tmp_pPMF)
+        bl_pA.append(tmp_pA)
+    print(len(S),len(pg[c:]),len(U[c:]), len(pA))
+    err_pg = np.std(bl_pg, axis=0)*t_val
+    err_pPMF = np.std(bl_pPMF, axis=0)*t_val
+    err_pA = np.std(bl_pA, axis=0)*t_val
+    np.savetxt('pred_gofr_'+str(selec1)+'_'+str(selec2)+'_'+str(Tp)+'_from_'+str(int(T))+'.dat', np.c_[r, pg, err_pg])
+    np.savetxt('pred_PMF_'+str(selec1)+'_'+str(selec2)+'_'+str(Tp)+'_from_'+str(int(T))+'.dat', np.c_[r_red, pPMF, err_pPMF])
+    np.savetxt('pred_A_'+str(selec1)+'_'+str(selec2)+'_'+str(Tp)+'_from_'+str(int(T))+'.dat', np.c_[r_red, pA, err_pA])
+    peak_find_simple(r[c:], pg[c:], U[c:], pA, S, thresh,Tp)
+
+    return pg, bl_pg, err_pg
+            
+
+def outpeak(r, U, A, S, minloc,maxloc,T):
+    dr = np.where(r == maxloc[0])[0][0]
+    db = np.where(r == minloc[0])[0][0]
+    dp = np.where(r == maxloc[1])[0][0]
+           
+    Ar = A[dr]
+    Sr = S[dr]
+    Ur = U[dr]
+    Ab = A[db]
+    Sb = S[db]
+    Ub = U[db]
+    Ap = A[dp]
+    Sp = S[dp]
+    Up = U[dp]
+
+    Aval = (2*Ab-Ar-Ap)
+    TSval = T*(2*Sb-Sr-Sp)
+    Uval = (2*Ub-Ur-Up)
+    print("***")
+    print("Temperature: %s" % T)
+    print(r[dr],r[db],r[dp])
+    print("Activation Free Energy %s (kcal/mol)" % (2*Ab-Ar-Ap))
+    print("Activation Entropy %s (kcal/mol/K)" % (2*Sb-Sr-Sp))
+    print("Activation T*S %s (kcal/mol)" % (T*(2*Sb-Sr-Sp)))
+    print("Activation U %s (kcal/mol)" % (2*Ub-Ur-Up))
+    print("***")
+    if T == Tp[0]:
+        f = open('activation_params.dat','w')
+        f.write('#T A TS U\n')
+    else:
+        f = open('activation_params.dat', 'a')
+
+    f.write("%s %s %s %s\n" % (T, Aval, TSval, Uval))
+    f.close()
+    
+    return
+    
 
 import numpy as np
 import argparse, math
+import os
 #import matplotlib.pyplot as plt
 from scipy import stats,integrate
 from scipy.signal import find_peaks
@@ -634,8 +814,14 @@ pltflag = int(args.plot)
 L, selec1, selec2, npt=read_input(str(args.f), selec1, selec2)
 
 
-for i in range(len(Tp)):
-    Tp[i] = float(Tp[i])
+#for i in range(len(Tp)):
+    #Tp[i] = float(Tp[i])
+
+Tp = []
+
+for i in range(200,360,5):
+    Tp.append(float(i))
+
 
 if args.thresh is not None:
     thresh=float(args.thresh)
@@ -653,9 +839,10 @@ nofr, bl_nofr = calc_nofr(gofr, dist, bl_gofr, L, N)
 
 # Finds the local minima and maxima
 maxvals, dmax, minvals, dmin = peak_find(dist, gofr, nofr,thresh)
+print(dmin,dmax)
 
 # Calculates the PMF
-PMF, c, bl_PMF = calc_PMF(dist,gofr, bl_gofr, T)
+PMF, c, bl_PMF, aofr, bl_aofr= calc_PMF(dist,gofr, bl_gofr, T)
 
 # Calculates the configurational entropy
 s2 = calc_sconfig(dist, gofr, bl_gofr)
@@ -664,7 +851,14 @@ s2 = calc_sconfig(dist, gofr, bl_gofr)
 # Temperature Derivative Calculations
 if ew == 1:
     # Reads beta derivative stuff, and makes GofR prediction
-    egofr, bl_egofr, err_egofr, e2gofr = read_egofr(t_val, selec1, selec2)
+    egofr, bl_egofr, err_egofr, e2gofr = read_egofr(t_val, selec1, selec2,"e")
+    U,bl_U=calc_U(dist, gofr, egofr, bl_gofr, bl_egofr,"e")
+    if os.path.isfile('ljpairdist_'+str(selec1)+'_'+str(selec2)+'.dat'):
+        ljgofr, bl_ljgofr, err_ljgofr, lj2gofr = read_egofr(t_val, selec1, selec2,"lj")
+        Ulj, bl_Ulj=calc_U(dist, gofr, ljgofr, bl_gofr, bl_ljgofr,"lj")
+    if os.path.isfile('kepairdist_'+str(selec1)+'_'+str(selec2)+'.dat'):
+        kegofr, bl_kegofr, err_kegofr, ke2gofr = read_egofr(t_val, selec1, selec2,"ke")
+        calc_U(dist, gofr, kegofr, bl_gofr, bl_kegofr,"ke")
     pGofR =  []
     if graphmovie == 0:
         for tp in Tp:
@@ -680,15 +874,26 @@ if ew == 1:
 
     bl_cutgofr = [ bl_gofr[b][c:] for b in range(nblocks) ]
     bl_cutegofr = [ bl_egofr[b][c:] for b in range(nblocks) ]
-    dPMF,bl_dPMF=calc_dPMF_db(PMF, dist[c:], gofr[c:], egofr[c:], bl_cutgofr, bl_cutegofr, bl_PMF, T)
+    dPMF,bl_dPMF,daofr,bl_daofr=calc_dPMF_db(PMF, dist[c:], gofr[c:], egofr[c:], bl_cutgofr, bl_cutegofr, bl_PMF, T)
     # PMF Predictions
     pPMF =  []
+    paofr = []
     for tp in Tp:
         pPMF.append(pred_PMF_Tdep(dist[c:], PMF, dPMF,bl_PMF,bl_dPMF, T, tp))
+        paofr.append(pred_AofR_Tdep(dist[c:], aofr, daofr,bl_aofr,bl_daofr, T, tp))
 
     # Calculates Entropy Derivative
     dS = calc_dS(PMF, dPMF,bl_PMF,bl_dPMF, dist[c:], T)
     calc_dsconfig_db(dist, gofr, bl_gofr,egofr,bl_egofr)
+    outpeak(dist[c:], U[c:], aofr, dS, dmin, dmax, T)
+    
+    # Better Prediction
+    if graphmovie == 0:
+        for tp in Tp:
+            pred_T(dist, gofr, U, bl_gofr, bl_U, dS, T, tp)
+    else:
+        for tp in range(150,400, 10):
+            pred_T(dist, gofr, U, bl_gofr, bl_U, dS, T, tp)
 
 # Pressure Derivative Calculations!
 if vw == 1:
