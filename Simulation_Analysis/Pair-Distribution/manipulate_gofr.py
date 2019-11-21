@@ -779,6 +779,7 @@ from scipy import stats,integrate
 from scipy.signal import find_peaks
 
 kb=0.0019872041 #kcal/mol
+convp=1.439E-5 #bar A^3 to kcal/mol
 
 
 # Command Line Input
@@ -814,13 +815,13 @@ pltflag = int(args.plot)
 L, selec1, selec2, npt=read_input(str(args.f), selec1, selec2)
 
 
-#for i in range(len(Tp)):
-    #Tp[i] = float(Tp[i])
+for i in range(len(Tp)):
+    Tp[i] = float(Tp[i])
 
-Tp = []
+#Tp = []
 
-for i in range(200,360,5):
-    Tp.append(float(i))
+#for i in range(200,360,5):
+#    Tp.append(float(i))
 
 
 if args.thresh is not None:
@@ -839,7 +840,6 @@ nofr, bl_nofr = calc_nofr(gofr, dist, bl_gofr, L, N)
 
 # Finds the local minima and maxima
 maxvals, dmax, minvals, dmin = peak_find(dist, gofr, nofr,thresh)
-print(dmin,dmax)
 
 # Calculates the PMF
 PMF, c, bl_PMF, aofr, bl_aofr= calc_PMF(dist,gofr, bl_gofr, T)
@@ -852,13 +852,23 @@ s2 = calc_sconfig(dist, gofr, bl_gofr)
 if ew == 1:
     # Reads beta derivative stuff, and makes GofR prediction
     egofr, bl_egofr, err_egofr, e2gofr = read_egofr(t_val, selec1, selec2,"e")
-    U,bl_U=calc_U(dist, gofr, egofr, bl_gofr, bl_egofr,"e")
     if os.path.isfile('ljpairdist_'+str(selec1)+'_'+str(selec2)+'.dat'):
         ljgofr, bl_ljgofr, err_ljgofr, lj2gofr = read_egofr(t_val, selec1, selec2,"lj")
         Ulj, bl_Ulj=calc_U(dist, gofr, ljgofr, bl_gofr, bl_ljgofr,"lj")
     if os.path.isfile('kepairdist_'+str(selec1)+'_'+str(selec2)+'.dat'):
         kegofr, bl_kegofr, err_kegofr, ke2gofr = read_egofr(t_val, selec1, selec2,"ke")
         calc_U(dist, gofr, kegofr, bl_gofr, bl_kegofr,"ke")
+    if os.path.isfile('volpairdist_'+str(selec1)+'_'+str(selec2)+'.dat'):
+        volgofr, bl_volgofr, err_volgofr, vol2gofr = read_egofr(t_val, selec1, selec2,"vol")
+        calc_U(dist, gofr, volgofr, bl_gofr, bl_volgofr, "vol")
+        # This adds the volume component to the gofr derivative, this makes it so that
+        # it actually gets the whole thing correctly!
+        egofr = egofr + P*convp*volgofr
+        for b in range(nblocks):
+            bl_egofr[b] = bl_egofr[b]+P*convp*bl_volgofr[b]
+
+    # Calculation of the internal energy
+    U,bl_U=calc_U(dist, gofr, egofr, bl_gofr, bl_egofr,"e")
     pGofR =  []
     if graphmovie == 0:
         for tp in Tp:

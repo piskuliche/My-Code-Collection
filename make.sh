@@ -11,6 +11,7 @@ mkdir bin/build
 mkdir bin/widom
 mkdir bin/gofr
 mkdir bin/gyro
+mkdir bin/gendist
 
 
 # Sets up the symlinks
@@ -38,6 +39,7 @@ ln -s $homepath/Simulation_Analysis/Pair-Distribution/setup_gofr.py bin/gofr
 ln -s $homepath/Simulation_Analysis/Pair-Distribution/manipulate_gofr.py bin/gofr
 ln -s $homepath/Simulation_Analysis/Atomic-Gyration/calc_atom_gyro.exe bin/gyro
 ln -s $homepath/Simulation_Analysis/Atomic-Gyration/setup_gyro.py bin/gyro
+ln -s $homepath/Simulation_Analysis/Predict_Distributions/general_distribution.py bin/gendist
 
 chmod 777 bin/msd/*
 chmod 777 bin/wham_gen/*
@@ -46,3 +48,4 @@ chmod 777 bin/widom/*
 chmod 777 bin/utils/*
 chmod 777 bin/gofr/*
 chmod 777 bin/gyro*
+chmod 777 bin/gendist

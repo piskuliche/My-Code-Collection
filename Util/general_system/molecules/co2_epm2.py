@@ -9,6 +9,7 @@ def define_molec(num_spec, blength):
     mol.write("O 1.14900 0.00000 0.00000\n")
     mol.close()
     # Atomic Parameters
+    print("Units are in kcal/mol")
     atms = {
         'name':["O","C","O"],
         'atype':[1,2,1],
@@ -27,7 +28,7 @@ def define_molec(num_spec, blength):
     }
     bnds.update({
         # general format bond: type, kb, ro, atm1, tm2
-        # Units kb:
+        # Units kcal
         # Units r:
         #O-C
        "O-C":[1, 575.00000, 1.14900, 0, 1],
