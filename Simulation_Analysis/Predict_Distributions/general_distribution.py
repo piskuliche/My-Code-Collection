@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 import numpy as np
+import pickle
 import os,time, argparse
 from scipy import stats
 from scipy.spatial import ConvexHull, Voronoi
-
-
-
+from scipy.spatial.distance import pdist, squareform
+from asphere import wrap_box, polyhedron, compute_vc, asphericity
 
 def pbc(r1,r2):
     """ 
@@ -28,51 +28,27 @@ def pbc2(r1,r2,otmp):
     atom = otmp[np.where(dist==minval)]
     return minval,atom
 
-def wrap_box(r1, r2):
-    """
-    This wraps the coordinates (in box units) back into the box.
-    """
-    dr = np.subtract(r1,r2)
-    new_coords = np.subtract(dr,np.round(dr))
-    return new_coords
 
-def polyhedron(coords, atom):
+def find_closest(dr_arr, drop):
     """
-    This finds the polyhedra for the center molecule
+    This finds the minimum values
     """
-    vor = Voronoi(coords)
-    points = [vor.vertices[x] for x in vor.regions[vor.point_region[int(atom/3)]] if x != -1]
-    return points
+    m,n=dr_arr.shape
+    mask=np.ones((m,n),dtype=bool)
+    mask[range(m),drop]=False
+    finarray=dr_arr[mask].reshape(m,n-1)
+    minval=finarray.min(axis=1)
+    minh,mino=np.where(dr_arr==finarray.min(axis=1,keepdims=True))
+    return minval, mino
+    
+    
 
-def compute_vc(points):
+def distance_wrap(r):
     """
-    Computes the voronoi cell
+    This calculates the distances with periodic boundaries
     """
-    S = ConvexHull(points).area
-    V = ConvexHull(points).volume
-    # Voronoi cell
-    eta = S**3./(36.*np.pi*V**2.)
-    return eta
-
-
-def asphericity(frame):
-    """
-    Note: this implementation is a hacked together implementation of the
-    asphericity calculation as was included in the Iorder package,
-    which can be found at https://github.com/ipudu/order/blob/master/order/avc.py
-
-    """
-    e=[]
-    for atom1 in frame["o"]:
-        c = frame["r"][atom1]
-        cs = np.asarray(frame["r"])[np.asarray(frame["o"])]
-        nc = wrap_box(c, cs)
-        points = polyhedron(nc, atom1)
-        e.append(compute_vc(points))
-    histasp,bins =np.histogram(e,bins=50,range=(1.0,4.0),density=False)
-    histasp = histasp/len(e)
-    return np.asarray(histasp)
-
+    dr=np.sqrt(squareform(pdist(r[:,0])-np.round(pdist(r[:,0])))**2. + squareform(pdist(r[:,1])-np.round(pdist(r[:,1])))**2. + squareform(pdist(r[:,2])-np.round(pdist(r[:,2])))**2.)
+    return dr
 
 def calc_hbonds(frame):
     """
@@ -80,37 +56,27 @@ def calc_hbonds(frame):
     """
     roo,roh,cosang=[],[],[]
     natoms = len(frame["type"])
-    closest=[0,0]
-    for atom1 in frame["h"]:
-        # Bookkeeping
-        # atom1 is the donor hydrogen atom
-        # oatm is its donor oxygen atom
-        # partner is the oxygen acceptor
-        #oatm=frame["co"][atom1]
-        oatm=int(frame["co"][atom1]/3)
-        otmp = np.delete(frame["o"],oatm)
-        closest=pbc2(frame["r"][atom1],np.array(frame["r"])[otmp],otmp)
-        # Scans other oxygens for closest oxygen to current selection
-        # Saves oxygen oxygen distance for histogramming
-        side_roh=closest[0]*frame["L"]
-        roh.append(side_roh)
-        # Identifies hydrogen in hbond
-        partner=closest[1][0]
-        side_roo = pbc(frame["r"][frame["o"][oatm]],frame["r"][partner])*frame["L"]
-        roo.append(side_roo)
-        #print(frame["L"])
-        #print("hd",frame["r"][atom1]*frame["L"])
-        #print("od",frame["r"][frame["o"][oatm]]*frame["L"])
-        #print("oa",frame["r"][partner]*frame["L"])
-        #side_rho=np.sqrt(np.abs(side_roo**2.-side_roh**2.))
-        side_rho=pbc(frame["r"][atom1],frame["r"][frame["o"][oatm]])*frame["L"]
-        #print(side_roh, side_roo, side_rho)
-        #side_rho=0.9572
-        # Calculate the cosine of the angle
-        # cos(theta)=(rho^2+roo^2-roh^2)/(2*rho*roo)
-        cos_theta=(side_rho**2.+side_roo**2.-side_roh**2.)/(2*side_rho*side_roo)
-        cosang.append(cos_theta)
-    #roo,roh,cosang = zip(*Parallel(n_jobs=4)(delayed(process_it)(i,frame) for i in frame["h"]))
+   
+    # Masks dr to be based on hatoms and all others
+    hdr=np.array(frame["dr"][frame["h"]])
+    hodr=np.array(hdr[:,frame["o"]])
+    # Masks dr ot be based on oatoms 
+    odr=np.array(frame["dr"][frame["o"]])
+
+    # This is an array that is 686 long and tells what  each hatom is closest to
+    oatms=(np.array(frame["co"])/3)[frame["h"]].astype(int)
+
+    # Calculates distances and angle.
+    sides_roh,closest=find_closest(hodr,oatms)
+    sides_rho=hodr.min(axis=1)
+    oarr=odr[:,np.array(frame["o"])]
+    sides_roo=oarr[oatms,closest]
+    roh = np.multiply(sides_roh,frame["L"])
+    rho = np.multiply(sides_rho,frame["L"])
+    roo = np.multiply(sides_roo,frame["L"])
+    #Law of cosines to get the hbond angle
+    #cos_theta=(side_rho**2.+side_roo**2.-side_roh**2.)/(2*side_rho*side_roo)
+    cosang = np.divide(np.power(rho,2)+np.power(roo,2)-np.power(roh,2),np.multiply(2,np.multiply(rho,roo)))
     # Does histogramming of distances and angles
     histoh,bins=np.histogram(roh,bins=50,range=(1.0,4.0),density=False)
     histoh = histoh/len(roh)
@@ -137,8 +103,6 @@ def write_data(params,finaldata,energy):
     # Does all the zeroing
     rbins=np.linspace(1.03,4.03,50)
     cbins=np.linspace(0.1,1.05,50)
-    #np.savetxt('r_oo_vs_r_oh.dat',np.c_[rbins,Roo/float(framecount),Roh/float(framecount),(dRoo)/float(framecount),(dRoh)/float(framecount)])
-    #np.savetxt('c_theta.dat', np.c_[cbins, Ctheta/float(framecount), dCtheta/float(framecount)])
     for key in finaldata:
         if 'err' not in key and "bl" not in key:
             if 'C' not in key:
@@ -222,13 +186,15 @@ def read_traj(params):
         line=f.readline().strip()
         natoms=int(line)
     # Read in the distances
-    Lval=np.genfromtxt('L.dat',usecols=0)
+    print("Reading Box Length")
+    Lval=np.genfromtxt('L.dat',usecols=0,max_rows=params["stop"])
     # Read in the energy, and calculate the fluctuation of energy
+    print("Reading in Energies")
     e,lj,ke,vol = [], [], [], []
-    if os.path.isfile("e_init.out"):   e=np.genfromtxt('e_init.out',usecols=0)[:params["stop"]]
-    if os.path.isfile("lj_init.out"):  lj=np.genfromtxt('lj_init.out',usecols=0)[:params["stop"]]
-    if os.path.isfile("vol_init.out"): vol=np.genfromtxt('vol_init.out',usecols=0)[:params["stop"]]
-    if os.path.isfile("ke_init.out"):  ke=np.genfromtxt('ke_init.out',usecols=0)[:params["stop"]]
+    if os.path.isfile("e_init.out"):   e=np.genfromtxt('e_init.out',usecols=0,max_rows=params["stop"])[:params["stop"]]
+    if os.path.isfile("lj_init.out"):  lj=np.genfromtxt('lj_init.out',usecols=0,max_rows=params["stop"])[:params["stop"]]
+    if os.path.isfile("vol_init.out"): vol=np.genfromtxt('vol_init.out',usecols=0,max_rows=params["stop"])[:params["stop"]]
+    if os.path.isfile("ke_init.out"):  ke=np.genfromtxt('ke_init.out',usecols=0,max_rows=params["stop"])[:params["stop"]]
     energy = { "e":e, "lj":lj, "ke":ke, "vol":vol }
     if len(lj) > 0 and len(ke) > 0 and len(lj) > 0:
         elec = np.subtract(e,lj)
@@ -236,6 +202,7 @@ def read_traj(params):
         energy["elec"]=elec
 
     # Here we define hs and os
+    print("Defining Essential Parameters")
     h,o,co,mol,atype=[],[],[],[],[]
     if params["ovtype"]=="ohh":
         count,t=0,0
@@ -253,6 +220,7 @@ def read_traj(params):
             mol.append(count)
     data={ "Roo":[], "Roh":[], "Ctheta":[], "Asphere":[]}
     # Starts reading the file again, this time for real
+    print("Opening Trajectory File")
     with open(params["filename"]) as f:
         lperframe=natoms+2
         frame=[]
@@ -261,7 +229,7 @@ def read_traj(params):
         start = time.time()
         while True:
             # Creates dictionary
-            frame={ "type":atype,"co":co, "r":[],"mol":mol, "h":h, "o":o,"L":Lval[framecount]}
+            frame={ "type":atype,"co":co, "r":[],"ra":[],"mol":mol, "h":h, "o":o,"L":Lval[framecount]}
             # Skips the initial two lines of the xyz file
             line=f.readline()
             line=f.readline()
@@ -271,9 +239,12 @@ def read_traj(params):
             for l in range(lperframe-2):
                 line=f.readline()
                 vals=line.strip().split()
-                frame["r"].append(np.array((float(vals[1])/frame["L"],float(vals[2])/frame["L"],float(vals[3])/frame["L"])))
+                frame["ra"].append(np.array((float(vals[1])/frame["L"],float(vals[2])/frame["L"],float(vals[3])/frame["L"])))
+                frame["r"].append([[float(vals[1])/frame["L"]],[float(vals[2])/frame["L"]],[float(vals[3])/frame["L"]]])
                 # increments mol number every 3 atoms
             # Do analysis
+            frame["r"]=np.array(frame["r"])
+            frame["dr"]=distance_wrap(frame["r"])
             roo,roh,ctheta,asp=do_analysis(params,frame)
             # The following section increments storage vectors
             data["Roo"].append(roo)
@@ -285,8 +256,13 @@ def read_traj(params):
             end = time.time()
             if (framecount % params["stop"] == 0): break
             if (framecount % 10 == 0): print("frame: %s \ntime_per_frame: %s seconds\ntotal_time: %s seconds" % (framecount,(end-start)/framecount, end-start))
-            
+            # Writes a restart file
+            if (framecount % 1000 == 0):
+                g = open("restart_distribution.pkl","wb")
+                pickle.dump(data,g)
+                g.close()
         manipulate_data(params,data,energy)
+
     return
 
 
@@ -338,4 +314,6 @@ args = parser.parse_args()
 kb=0.0019872041
 
 inputparams={"filename":str(args.f), "stop":int(args.nconfigs), "htype":int(args.hatom), "otype":int(args.oatom), "ovtype":str(args.order), "nblocks":int(args.nblocks), "T":float(args.T), "P":float(args.P),"pre":str(args.prepend), "aspon":int(args.asphere)}
+print("Welcome to the Distribution Predictor!")
+if(inputparams["aspon"]==1): print("Note: Asphericity calculation is on, calcualtion will be much slower.")
 read_traj(inputparams)
