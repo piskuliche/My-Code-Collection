@@ -66,7 +66,10 @@ For calculations that are simple, i.e. calculations that don't take long to conv
 
 
 For a simple run that includes asphericity (and default hbond distributions)
+
+```
 general\_distribution.py -f "traj.xyz" -nblocks 5 -nconfigs 1000 -prepend run\_ -asphere 1
+```
 
 The code will run, and all output files will be prepended with run\_.
 
