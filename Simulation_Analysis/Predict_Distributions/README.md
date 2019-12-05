@@ -76,16 +76,19 @@ The code will run, and all output files will be prepended with run\_.
 For calculations that are complicated or take a long time to run, the code has a built in function to speed up the 
 calculation that relies on running the code three separate times.
 
-1) Farm Launch
+**1) Farm Launch**
+
 The first run of the code aims to split the trajectory file into separate files by creating a subdirectory Farm with frame_freq configs per subdirectory.
 
 i.e. this command,
+
 general\_distribution.py -f traj.xyz -nblocks 5 -nconfigs 1000000 -prepend farm1\_ -restart 2 -frame\_freq 1000 
 
 will separate the trajectory file, box length file, and energy file into 1000 directories each that has 1000 configurations.
 
 
-2) Calculate distributions in subdirectories
+**2) Calculate distributions in subdirectories**
+
 This is best accomplished by a job array, where you individually run the code in each subdirectory.
 
 i.e. for the above example
@@ -98,7 +101,8 @@ cd ../../
 
 Note that nconfigs has changed to the number of configurations in the particular subdirectory.
 
-3) Read the Restarts and Combine
+**3) Read the Restarts and Combine**
+
 The last run of the code reconstitutes the separate calculations and reads in their results and finalizes the calculations.
 
 general\_distribution.py -f traj.xyz -nblocks 5 -T 298.15 -nconfigs 1000000 -prepend farm1\_ -asphere 1 -restart 1 -restno 1000
