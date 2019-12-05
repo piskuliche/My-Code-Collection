@@ -54,10 +54,10 @@ def calc_hbonds(frame):
     #cos_theta=(side_rho**2.+side_roo**2.-side_roh**2.)/(2*side_rho*side_roo)
     cosang = np.divide(np.power(rho,2)+np.power(roo,2)-np.power(roh,2),np.multiply(2,np.multiply(rho,roo)))
     # Does histogramming of distances and angles
-    histoh,bins=np.histogram(roh,bins=50,range=(1.0,4.0),density=False)
+    histoh,bins=np.histogram(roh,bins=200,range=(1.0,4.0),density=False)
     histoh = histoh/len(roh)
-    histoo,bins=np.histogram(roo,bins=50,range=(1.0,4.0),density=False)
+    histoo,bins=np.histogram(roo,bins=200,range=(1.0,4.0),density=False)
     histoo = histoo/len(roo)
-    histang, bins=np.histogram(np.arccos(cosang), bins=50, range=(0.0,1.0), density=False)
+    histang, bins=np.histogram(np.arccos(cosang), bins=200, range=(0.0,1.0), density=False)
     histang = histang/len(cosang)
     return np.asarray(histoo),np.asarray(histoh),np.asarray(histang)

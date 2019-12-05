@@ -46,6 +46,6 @@ def asphericity(frame):
         nc = wrap_box(c, cs)
         points = polyhedron(nc, atom1)
         e.append(compute_vc(points))
-    histasp,bins =np.histogram(e,bins=50,range=(1.0,4.0),density=False)
+    histasp,bins =np.histogram(e,bins=200,range=(1.0,4.0),density=False)
     histasp = histasp/len(e)
     return np.asarray(histasp)

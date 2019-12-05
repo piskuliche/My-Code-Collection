@@ -9,6 +9,7 @@ from asphere import wrap_box, polyhedron, compute_vc, asphericity
 from hbond_calc import find_closest, distance_wrap, calc_hbonds
 from post_calculation import calc_S, calc_H_or_U, calc_thermodynamic_potential
 from post_calculation import manipulate_data, write_data, post_analysis
+from restart import call_calculation
 
 
 def do_analysis(params,frame):
@@ -19,7 +20,51 @@ def do_analysis(params,frame):
     roo,roh,ctheta=calc_hbonds(frame)
     if params["aspon"]==1: asp=asphericity(frame)
     return roo, roh,ctheta, asp
-        
+
+def farm_frames(params):
+    print("Preparing to farm out frames")
+    natoms=0
+    # Opens the file to read number of atoms
+    with open(params["filename"]) as f:
+        line=f.readline().strip()
+        natoms=int(line)
+    print("There are %d atoms per frame" % natoms)
+    print("Reading Box Length")
+    Lval=np.genfromtxt('L.dat',usecols=0,max_rows=params["stop"])
+    # Read in the energy, and calculate the fluctuation of energy
+    print("Reading in Energies")
+    e,lj,ke,vol = [], [], [], []
+    if os.path.isfile("e_init.out"):   e=np.genfromtxt('e_init.out',usecols=0,max_rows=params["stop"])[:params["stop"]]
+    if os.path.isfile("lj_init.out"):  lj=np.genfromtxt('lj_init.out',usecols=0,max_rows=params["stop"])[:params["stop"]]
+    if os.path.isfile("vol_init.out"): vol=np.genfromtxt('vol_init.out',usecols=0,max_rows=params["stop"])[:params["stop"]]
+    if os.path.isfile("ke_init.out"):  ke=np.genfromtxt('ke_init.out',usecols=0,max_rows=params["stop"])[:params["stop"]]
+    energy = { "e":e, "lj":lj, "ke":ke, "vol":vol }
+
+    count=0
+    linesperframe=natoms+2
+    print("Writing out files")
+    os.makedirs("Farm",exist_ok=True)
+    with open(params["filename"]) as f:
+        while(count < params["stop"]/params["framefreq"]):
+            os.makedirs("Farm/"+str(count),exist_ok=True)
+            start = count*params["framefreq"]
+            end = (count+1)*params["framefreq"]
+            print("Writing %d directory of %d" % (count,int(params["stop"]/params["framefreq"])))
+            g=open("Farm/"+str(count)+"/traj.xyz","w")
+            for frame in range(params["framefreq"]):
+                for l in range(linesperframe):
+                    g.write(f.readline())
+            g.close()
+            np.savetxt("Farm/"+str(count)+"/e_init.out", np.c_[energy["e"][start:end]])
+            np.savetxt("Farm/"+str(count)+"/L.dat", np.c_[Lval[start:end]])
+            np.savetxt("Farm/"+str(count)+"/lj_init.out", np.c_[energy["lj"][start:end]])
+            np.savetxt("Farm/"+str(count)+"/vol_init.out", np.c_[energy["vol"][start:end]])
+            np.savetxt("Farm/"+str(count)+"/ke_init.out", np.c_[energy["ke"][start:end]])
+            count+=1
+    return
+            
+         
+    
 
 def read_traj(params):
     """
@@ -101,10 +146,13 @@ def read_traj(params):
             end = time.time()
             if (framecount % 10 == 0): print("frame: %s \ntime_per_frame: %s seconds\ntotal_time: %s seconds" % (framecount,(end-start)/framecount, end-start))
             # Writes a restart file
-            if (framecount % 1000 == 0):
-                g = open("restart_distribution.pkl","wb")
+            if (framecount % params["Rfreq"] == 0):
+                g = open("restart_distribution.data.pkl","wb")
                 pickle.dump(data,g)
                 g.close()
+                h = open("restart_distribution.energy.pkl","wb")
+                pickle.dump(energy,h)
+                h.close()
             if (framecount % params["stop"] == 0): break
         manipulate_data(params,data,energy)
 
@@ -124,8 +172,10 @@ parser.add_argument('-T', default=298.15, help='Temperature of the simulation (K
 parser.add_argument('-P', default=1.0, help='Pressure of the simulation (bar)')
 parser.add_argument('-prepend', default="run_", help='Prepend the output files with information')
 parser.add_argument('-asphere', default=0, help='Boolean value, 1 to calculate asphericity, 0 to not')
-parser.add_argument('-restart', default=0, help='Boolean value, 1 to read in pkl files, 0 to not')
+parser.add_argument('-restart', default=0, help='Boolean value, 2 to start a farm job, 1 to read in pkl files, 0 to not')
 parser.add_argument('-restno', default=10, help='Integer value, number of subdirectories to read restarts')
+parser.add_argument('-rest_freq', default=1000, help='Integer value, number of configs per restart file')
+parser.add_argument('-frame_freq', default=100, help='Integer value, number of configs per subdir')
 
 args = parser.parse_args()
 
@@ -133,17 +183,22 @@ args = parser.parse_args()
 kb=0.0019872041
 
 # Dictionary that holds all the information about the simulation run.
-inputparams={"filename":str(args.f), "stop":int(args.nconfigs), "htype":int(args.hatom), "otype":int(args.oatom), "ovtype":str(args.order), "nblocks":int(args.nblocks), "T":float(args.T), "P":float(args.P),"pre":str(args.prepend), "aspon":int(args.asphere),"R":int(args.restart), "numR":int(args.restno)}
+inputparams={"filename":str(args.f), "stop":int(args.nconfigs), "htype":int(args.hatom), "otype":int(args.oatom), "ovtype":str(args.order), "nblocks":int(args.nblocks), "T":float(args.T), "P":float(args.P),"pre":str(args.prepend), "aspon":int(args.asphere),"R":int(args.restart), "numR":int(args.restno),'Rfreq':int(args.rest_freq),'framefreq':int(args.frame_freq)}
 
 
 print("Welcome to the Distribution Predictor!")
 if(inputparams["aspon"]==1): print("Note: Asphericity calculation is on, calcualtion will be much slower.")
+
 
 if (inputparams["R"] == 0):
     print("Beginning to read trajectory")
     read_traj(inputparams)
 elif (inputparams["R"] == 1):
     print("Restart has been selected")
+    call_calculation(inputparams)
+elif (inputparams["R"] == 2):
+    print("Restart farming is initiated")
+    farm_frames(inputparams)
 else:
     print("Restart option must be 1 or 0, nothing else will suffice.")
     print("Please try again")

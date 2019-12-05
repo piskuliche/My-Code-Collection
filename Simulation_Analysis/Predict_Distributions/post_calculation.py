@@ -40,8 +40,13 @@ def write_data(params,finaldata,energy):
     This writes the data to an outut file
     """
     # Does all the zeroing
-    rbins=np.linspace(1.03,4.03,50)
-    cbins=np.linspace(0.1,1.05,50)
+    rmin,rmax=1.0,4.0
+    cmin,cmax=0.0,1.0
+    rbin,cbin=200.,200.
+    rdiff=(rmax-rmin)/(2*rbin)
+    cdiff=(rmax-rmin)/(2*cbin)
+    rbins=np.linspace(rmin+rdiff,rmax-rdiff,rbin)
+    cbins=np.linspace(cmin+cdiff,cmax-cdiff,cbin)
     for key in finaldata:
         if 'err' not in key and "bl" not in key:
             if 'C' not in key:
