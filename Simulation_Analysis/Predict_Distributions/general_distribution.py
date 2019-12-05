@@ -1,4 +1,14 @@
 #!/usr/bin/env python
+"""
+This software was developed by Ezekiel Piskulich at the University of Kansas in November 2019.
+
+Feel free to modify, extend, or develop this code further.
+
+"""
+
+
+
+
 import numpy as np
 import pickle
 import os,time, argparse
