@@ -4,7 +4,10 @@
 
 To compile this code, use the following:
 
+```
 pgfortran -O3 -mcmodel=medium epairdist.f90 -o calc_gofr.exe
+```
+
 
 ## Instructions
 
