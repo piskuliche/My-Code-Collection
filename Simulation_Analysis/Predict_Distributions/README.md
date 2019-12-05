@@ -30,20 +30,33 @@ Arguments will be listed when the code is run with the optional -h argument.
 
 All arguments include defaults; however, for best results one should carefully select arguments.
 
--h: prints help information
--f: trajectory file name
--nblocks: number of blocks for block averaging
--nconfigs: number of configurations
--oatm: integer type representing oxygen in the trajectory file
--hatm: integer type representing hydrogen in the trajectory file
--order: order of the trajectory file (currently, only 'ohh' is supported and is default)
--T: Temperature of simulation, used in calculation of free energy
--P: Pressure of simulation, currently unused.
--prepend: String to prepend to output files.
--restart: 0 if not restarting a calcualtion, 1 if restarting a farmed calculation, 2 if launching a farmed calculation
--restno: integer value that is the number of farmed trajectories.
--rest\_freq: integer value, the number of configurations between dumping restart files (these overwrite each other)
--frame\_freq: integer value, the number of configurations per subdirectory
+**-h**: prints help information
+
+**-f**: trajectory file name
+
+**-nblocks**: number of blocks for block averaging
+
+**-nconfigs**: number of configurations
+
+**-oatm**: integer type representing oxygen in the trajectory file
+
+**-hatm**: integer type representing hydrogen in the trajectory file
+
+**-order**: order of the trajectory file (currently, only 'ohh' is supported and is default)
+
+**-T**: Temperature of simulation, used in calculation of free energy
+
+**-P**: Pressure of simulation, currently unused.
+
+**-prepend**: String to prepend to output files.
+
+**-restart**: 0 if not restarting a calcualtion, 1 if restarting a farmed calculation, 2 if launching a farmed calculation
+
+**-restno**: integer value that is the number of farmed trajectories.
+
+**-rest\_freq**: integer value, the number of configurations between dumping restart files (these overwrite each other)
+
+**-frame\_freq**: integer value, the number of configurations per subdirectory
 
 
 ## Running the Code (Normal Run):
