@@ -16,6 +16,7 @@ from scipy import stats
 from scipy.spatial import ConvexHull, Voronoi
 from scipy.spatial.distance import pdist, squareform
 from asphere import wrap_box, polyhedron, compute_vc, asphericity
+from rdf import radial_distribution, remove_likes, init_rdf 
 from hbond_calc import find_closest, distance_wrap, calc_hbonds
 from post_calculation import calc_S, calc_H_or_U, calc_thermodynamic_potential
 from post_calculation import manipulate_data, write_data, post_analysis
@@ -26,10 +27,12 @@ def do_analysis(params,frame):
     """ 
     This allows for modular input and output, and provides timings.
     """
-    roo,roh,ctheta,asp=np.zeros(50),np.zeros(50),np.zeros(50),np.zeros(50)
+    roo,roh,ctheta,asp=np.zeros(200),np.zeros(200),np.zeros(200),np.zeros(200)
+    goo, goh, ghh = np.zeros(params['rdfbins']),np.zeros(params['rdfbins']),np.zeros(params['rdfbins'])
     roo,roh,ctheta=calc_hbonds(frame)
+    if params["rdfon"]==1: goo,goh,ghh = radial_distribution(params,frame)
     if params["aspon"]==1: asp=asphericity(frame)
-    return roo, roh,ctheta, asp
+    return roo, roh, ctheta, asp, goo, goh, ghh
 
 def farm_frames(params):
     print("Preparing to farm out frames")
@@ -100,7 +103,6 @@ def read_traj(params):
         elec = np.subtract(e,lj)
         elec = np.subtract(elec,ke)
         energy["elec"]=elec
-
     # Here we define hs and os
     print("Defining Essential Parameters")
     h,o,co,mol,atype=[],[],[],[],[]
@@ -118,7 +120,8 @@ def read_traj(params):
                 atype.append(2)
                 co.append(t)
             mol.append(count)
-    data={ "Roo":[], "Roh":[], "Ctheta":[], "Asphere":[]}
+    params["h_o"],params["h_h"]=init_rdf(params,len(o)),init_rdf(params,len(h))
+    data={ "Roo":[], "Roh":[], "Ctheta":[], "Asphere":[],'Groo':[], 'Groh':[], 'Grhh':[]}
     # Starts reading the file again, this time for real
     print("Opening Trajectory File")
     with open(params["filename"]) as f:
@@ -145,12 +148,15 @@ def read_traj(params):
             # Do analysis
             frame["r"]=np.array(frame["r"])
             frame["dr"]=distance_wrap(frame["r"])
-            roo,roh,ctheta,asp=do_analysis(params,frame)
+            roo,roh,ctheta,asp,goo,goh,ghh=do_analysis(params,frame)
             # The following section increments storage vectors
             data["Roo"].append(roo)
             data["Roh"].append(roh)
             data["Ctheta"].append(ctheta*180.0/np.pi)
             data["Asphere"].append(asp)
+            data["Groo"].append(goo)
+            data["Groh"].append(goh)
+            data["Grhh"].append(ghh)
             # End storage Vector section
             framecount+=1
             end = time.time()
@@ -186,6 +192,9 @@ parser.add_argument('-restart', default=0, help='Boolean value, 2 to start a far
 parser.add_argument('-restno', default=10, help='Integer value, number of subdirectories to read restarts')
 parser.add_argument('-rest_freq', default=1000, help='Integer value, number of configs per restart file')
 parser.add_argument('-frame_freq', default=100, help='Integer value, number of configs per subdir')
+parser.add_argument('-dr', default=0.1, help='Float value, bin width for rdf')
+parser.add_argument('-rmax', default=10.0, help='Float value, end of rdf')
+parser.add_argument('-RDF', default=0, help='Integer value, 1 is on, 0 is off')
 
 args = parser.parse_args()
 
@@ -193,11 +202,12 @@ args = parser.parse_args()
 kb=0.0019872041
 
 # Dictionary that holds all the information about the simulation run.
-inputparams={"filename":str(args.f), "stop":int(args.nconfigs), "htype":int(args.hatom), "otype":int(args.oatom), "ovtype":str(args.order), "nblocks":int(args.nblocks), "T":float(args.T), "P":float(args.P),"pre":str(args.prepend), "aspon":int(args.asphere),"R":int(args.restart), "numR":int(args.restno),'Rfreq':int(args.rest_freq),'framefreq':int(args.frame_freq)}
-
+inputparams={"filename":str(args.f), "stop":int(args.nconfigs), "htype":int(args.hatom), "otype":int(args.oatom), "ovtype":str(args.order), "nblocks":int(args.nblocks), "T":float(args.T), "P":float(args.P),"pre":str(args.prepend), "aspon":int(args.asphere),"R":int(args.restart), "numR":int(args.restno),'Rfreq':int(args.rest_freq),'framefreq':int(args.frame_freq),'dr':float(args.dr), 'rmax':float(args.rmax),'rdfon':int(args.RDF)}
+inputparams["rdfbins"]=int(inputparams["rmax"]/inputparams["dr"])
 
 print("Welcome to the Distribution Predictor!")
 if(inputparams["aspon"]==1): print("Note: Asphericity calculation is on, calcualtion will be much slower.")
+if(inputparams["rdfon"]==1): print("Note: RDF calculation is on, calcualtion will be much slower.")
 
 
 if (inputparams["R"] == 0):

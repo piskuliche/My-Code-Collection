@@ -4,15 +4,17 @@ import os,time, argparse
 from scipy import stats
 from scipy.spatial import ConvexHull, Voronoi
 from scipy.spatial.distance import pdist, squareform
+from rdf import remove_likes
 
 def find_closest(dr_arr, drop):
     """
     This finds the minimum values
-    """
     m,n=dr_arr.shape
     mask=np.ones((m,n),dtype=bool)
     mask[range(m),drop]=False
     finarray=dr_arr[mask].reshape(m,n-1)
+    """
+    finarray=remove_likes(dr_arr,drop)
     minval=finarray.min(axis=1)
     minh,mino=np.where(dr_arr==finarray.min(axis=1,keepdims=True))
     return minval, mino

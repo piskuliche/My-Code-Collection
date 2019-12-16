@@ -70,6 +70,17 @@ for r in range(len(runs)):
     for item in items:
         print(item)
         np.savetxt(str(item)+'_init.out', np.c_[runs[r][item]])
+        bl = []
+        for b in range(nblocks):
+            bstart = b*nperb
+            bend = bstart + nperb
+            bl.append(np.average(runs[r][item][bstart:bend]))
+        std = np.std(bl)*t_val
+
+        print("The average of item %s is %.5f +/- %.5f" %(item,np.average(runs[r][item]),std))
+        f = open("run"+str(r+1)+"_"+str(item)+'.avg','w')
+        f.write('%s %.5f %.5f\n' % (info,np.average(runs[r][item]),std))
+        f.close()
         if item=="Volume":
             L=np.asarray(runs[r][item])**(1/3.)
             np.savetxt('L.dat', np.c_[L])
@@ -169,14 +180,3 @@ for r in range(len(runs)):
                 print("Total 1st beta deriv of %s is %s +/- %s" %(item, tderiv,tder_err))
                 print("Total 2nd beta deriv of %s is %s +/- %s" % (item, t2deriv,t2der_err))
 
-        bl = []
-        for b in range(nblocks):
-            bstart = b*nperb
-            bend = bstart + nperb
-            bl.append(np.average(runs[r][item][bstart:bend]))
-        std = np.std(bl)*t_val
-            
-        print("The average of item %s is %.5f +/- %.5f" %(item,np.average(runs[r][item]),std))
-        f = open("run"+str(r+1)+"_"+str(item)+'.avg','w')
-        f.write('%s %.5f %.5f\n' % (info,np.average(runs[r][item]),std))
-        f.close()

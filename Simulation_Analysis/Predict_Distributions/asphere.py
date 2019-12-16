@@ -1,3 +1,9 @@
+"""
+Note: this implementation is a hacked together implementation of the
+asphericity calculation as was included in the Iorder package,
+which can be found at https://github.com/ipudu/order/blob/master/order/avc.py
+"""
+
 import numpy as np
 import pickle
 import os,time, argparse

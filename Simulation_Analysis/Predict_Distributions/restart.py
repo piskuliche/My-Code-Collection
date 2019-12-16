@@ -27,6 +27,7 @@ def read_restart(params,ftype):
             for item in tmp[key]:
                 if (ftype=="data"): data[key].append(item)
                 else: data[key]=np.append(data[key],item)
+    print("After restart: there are %d total %s points" % (int(len(data[key])),ftype))
     return data
 
 def call_calculation(params):

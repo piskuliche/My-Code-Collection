@@ -16,7 +16,6 @@ def post_analysis(params, postdata, energy):
     post_out={}
     for key in postdata:
         if 'err' not in key and "bl" not in key and "e" not in key[:2] and "lj" not in key and "vol" not in key:
-            print(key)
             post_out["AG"+key],post_out["UH"+key],post_out["S"+key]=calc_thermodynamic_potential(params, postdata[key], postdata["e"+key])
             tmpag, tmpuh, tmps = [], [], []
             for b in range(params["nblocks"]):
@@ -40,19 +39,24 @@ def write_data(params,finaldata,energy):
     This writes the data to an outut file
     """
     # Does all the zeroing
+    gmin,gmax=0.0,params["rmax"]
     rmin,rmax=1.0,4.0
     cmin,cmax=0.0,1.0
-    rbin,cbin=200.,200.
+    rbin,cbin,gbin=200.,200.,float(params["rdfbins"])
     rdiff=(rmax-rmin)/(2*rbin)
     cdiff=(rmax-rmin)/(2*cbin)
+    gdiff=(gmax-gmin)/(2*gbin)
+    gbins=np.linspace(gmin+gdiff,gmax-gdiff,gbin)
     rbins=np.linspace(rmin+rdiff,rmax-rdiff,rbin)
     cbins=np.linspace(cmin+cdiff,cmax-cdiff,cbin)
     for key in finaldata:
         if 'err' not in key and "bl" not in key:
-            if 'C' not in key:
+            if 'R' in key or 'As' in key:
                 np.savetxt(params["pre"]+key+'_dist.dat', np.c_[rbins,finaldata[key],finaldata[key+'err']])
-            else:
+            elif 'C' in key:
                 np.savetxt(params["pre"]+key+'_dist.dat', np.c_[cbins,finaldata[key],finaldata[key+'err']])
+            elif 'Gr' in key:
+                np.savetxt(params["pre"]+key+'_dist.dat', np.c_[gbins,finaldata[key],finaldata[key+'err']])
     return
 
 def manipulate_data(params, data, energy):

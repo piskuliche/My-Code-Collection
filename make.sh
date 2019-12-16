@@ -47,5 +47,5 @@ chmod 777 bin/build/*
 chmod 777 bin/widom/*
 chmod 777 bin/utils/*
 chmod 777 bin/gofr/*
-chmod 777 bin/gyro*
-chmod 777 bin/gendist
+chmod 777 bin/gyro/*
+chmod 777 bin/gendist/*
