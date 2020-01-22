@@ -57,6 +57,10 @@ def write_data(params,finaldata,energy):
                 np.savetxt(params["pre"]+key+'_dist.dat', np.c_[cbins,finaldata[key],finaldata[key+'err']])
             elif 'Gr' in key:
                 np.savetxt(params["pre"]+key+'_dist.dat', np.c_[gbins,finaldata[key],finaldata[key+'err']])
+        if 'bl' in key and 'Gr' in key:
+            for b in range(params["nblocks"]):
+                np.savetxt(params["pre"]+str(b)+key+'_dist.dat', np.c_[gbins,finaldata[key][b]])
+            
     return
 
 def manipulate_data(params, data, energy):
@@ -84,6 +88,7 @@ def manipulate_data(params, data, energy):
             tmp = []
             for b in range(params["nblocks"]):
                 bstart, bend = b*nperb, (b+1)*nperb
+                print(len(energy[ekey][bstart:bend]))
                 tmp.append(np.average(np.array(data[key][bstart:bend])*np.array(energy[ekey][bstart:bend])[:,None],axis=0)-OutputData[key]*np.average(energy[ekey][bstart:bend]))
             OutputData[ekey+key+"err"]=np.std(tmp,axis=0)*t_val
             OutputData["bl_"+ekey+key]=tmp
