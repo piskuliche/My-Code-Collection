@@ -10,7 +10,7 @@ Feel free to modify, extend, or develop this code further.
 
 
 import numpy as np
-import pickle
+import pickle,gzip
 import os,time, argparse
 from scipy import stats
 from scipy.spatial import ConvexHull, Voronoi
@@ -38,9 +38,14 @@ def farm_frames(params):
     print("Preparing to farm out frames")
     natoms=0
     # Opens the file to read number of atoms
-    with open(params["filename"]) as f:
-        line=f.readline().strip()
-        natoms=int(line)
+    if params["zipped"]==False:
+        with open(params["filename"],'r') as f:
+            line=f.readline().strip()
+            natoms=int(line)
+    else:
+        with gzip.open(params["filename"],'rt') as f:
+            line=f.readline().strip()
+            natoms=int(line) 
     print("There are %d atoms per frame" % natoms)
     print("Reading Box Length")
     Lval=np.genfromtxt('L.dat',usecols=0,max_rows=params["stop"])
@@ -57,23 +62,46 @@ def farm_frames(params):
     linesperframe=natoms+2
     print("Writing out files")
     os.makedirs("Farm",exist_ok=True)
-    with open(params["filename"]) as f:
-        while(count < params["stop"]/params["framefreq"]):
-            os.makedirs("Farm/"+str(count),exist_ok=True)
-            start = count*params["framefreq"]
-            end = (count+1)*params["framefreq"]
-            print("Writing %d directory of %d" % (count,int(params["stop"]/params["framefreq"])))
-            g=open("Farm/"+str(count)+"/traj.xyz","w")
-            for frame in range(params["framefreq"]):
-                for l in range(linesperframe):
-                    g.write(f.readline())
-            g.close()
-            np.savetxt("Farm/"+str(count)+"/e_init.out", np.c_[energy["e"][start:end]])
-            np.savetxt("Farm/"+str(count)+"/L.dat", np.c_[Lval[start:end]])
-            np.savetxt("Farm/"+str(count)+"/lj_init.out", np.c_[energy["lj"][start:end]])
-            np.savetxt("Farm/"+str(count)+"/vol_init.out", np.c_[energy["vol"][start:end]])
-            np.savetxt("Farm/"+str(count)+"/ke_init.out", np.c_[energy["ke"][start:end]])
-            count+=1
+    
+    # These are the same, just depend on if gzipped or not.
+    if params["zipped"]==False:
+        with open(params["filename"]) as f:
+            while(count < params["stop"]/params["framefreq"]):
+                os.makedirs("Farm/"+str(count),exist_ok=True)
+                start = count*params["framefreq"]
+                end = (count+1)*params["framefreq"]
+                print("Writing %d directory of %d" % (count,int(params["stop"]/params["framefreq"])))
+                # This opens the files in the Farm directory and writes them.
+                g=open("Farm/"+str(count)+"/traj.xyz","w")
+                for frame in range(params["framefreq"]):
+                    for l in range(linesperframe):
+                        g.write(f.readline())
+                g.close()
+                np.savetxt("Farm/"+str(count)+"/e_init.out", np.c_[energy["e"][start:end]])
+                np.savetxt("Farm/"+str(count)+"/L.dat", np.c_[Lval[start:end]])
+                np.savetxt("Farm/"+str(count)+"/lj_init.out", np.c_[energy["lj"][start:end]])
+                np.savetxt("Farm/"+str(count)+"/vol_init.out", np.c_[energy["vol"][start:end]])
+                np.savetxt("Farm/"+str(count)+"/ke_init.out", np.c_[energy["ke"][start:end]])
+                count+=1
+    else:
+        with gzip.open(params["filename"],'rt') as f:
+            while(count < params["stop"]/params["framefreq"]):
+                os.makedirs("Farm/"+str(count),exist_ok=True)
+                start = count*params["framefreq"]
+                end = (count+1)*params["framefreq"]
+                print("Writing %d directory of %d" % (count,int(params["stop"]/params["framefreq"])))
+                # This opens the files in the Farm directory and writes them.
+                g=gzip.open("Farm/"+str(count)+"/traj.xyz.gz","wt",compresslevel=1)
+                for frame in range(params["framefreq"]):
+                    for l in range(linesperframe):
+                        g.write(f.readline())
+                g.close()
+                np.savetxt("Farm/"+str(count)+"/e_init.out", np.c_[energy["e"][start:end]])
+                np.savetxt("Farm/"+str(count)+"/L.dat", np.c_[Lval[start:end]])
+                np.savetxt("Farm/"+str(count)+"/lj_init.out", np.c_[energy["lj"][start:end]])
+                np.savetxt("Farm/"+str(count)+"/vol_init.out", np.c_[energy["vol"][start:end]])
+                np.savetxt("Farm/"+str(count)+"/ke_init.out", np.c_[energy["ke"][start:end]])
+                count+=1
     return
             
          
@@ -85,9 +113,14 @@ def read_traj(params):
     """
     natoms=0
     # Opens the file to read number of atoms
-    with open(params["filename"]) as f:
-        line=f.readline().strip()
-        natoms=int(line)
+    if params["zipped"]==False: 
+        with open(params["filename"]) as f:
+            line=f.readline().strip()
+            natoms=int(line)
+    else:
+        with gzip.open(params["filename"]) as f:
+            line=f.readline().strip()
+            natoms=int(line)
     # Read in the distances
     print("Reading Box Length")
     Lval=np.genfromtxt('L.dat',usecols=0,max_rows=params["stop"])
@@ -124,53 +157,102 @@ def read_traj(params):
     data={ "Roo":[], "Roh":[], "Ctheta":[], "Asphere":[],'Groo':[], 'Groh':[], 'Grhh':[]}
     # Starts reading the file again, this time for real
     print("Opening Trajectory File")
-    with open(params["filename"]) as f:
-        lperframe=natoms+2
-        frame=[]
-        framecount=0
-        # Each iteration is a loop over frames.
-        start = time.time()
-        while True:
-            # Creates dictionary
-            frame={ "type":atype,"co":co, "r":[],"ra":[],"mol":mol, "h":h, "o":o,"L":Lval[framecount]}
-            # Skips the initial two lines of the xyz file
-            line=f.readline()
-            line=f.readline()
-            if not line:
-                break
-            # Reads in the frame into the dictionary, "frame"
-            for l in range(lperframe-2):
+    if params["zipped"]==False:
+        with open(params["filename"],'r') as f:
+            lperframe=natoms+2
+            frame=[]
+            framecount=0
+            # Each iteration is a loop over frames.
+            start = time.time()
+            while True:
+                # Creates dictionary
+                frame={ "type":atype,"co":co, "r":[],"ra":[],"mol":mol, "h":h, "o":o,"L":Lval[framecount]}
+                # Skips the initial two lines of the xyz file
                 line=f.readline()
-                vals=line.strip().split()
-                frame["ra"].append(np.array((float(vals[1])/frame["L"],float(vals[2])/frame["L"],float(vals[3])/frame["L"])))
-                frame["r"].append([[float(vals[1])/frame["L"]],[float(vals[2])/frame["L"]],[float(vals[3])/frame["L"]]])
-                # increments mol number every 3 atoms
-            # Do analysis
-            frame["r"]=np.array(frame["r"])
-            frame["dr"]=distance_wrap(frame["r"])
-            roo,roh,ctheta,asp,goo,goh,ghh=do_analysis(params,frame)
-            # The following section increments storage vectors
-            data["Roo"].append(roo)
-            data["Roh"].append(roh)
-            data["Ctheta"].append(ctheta*180.0/np.pi)
-            data["Asphere"].append(asp)
-            data["Groo"].append(goo)
-            data["Groh"].append(goh)
-            data["Grhh"].append(ghh)
-            # End storage Vector section
-            framecount+=1
-            end = time.time()
-            if (framecount % 10 == 0): print("frame: %s \ntime_per_frame: %s seconds\ntotal_time: %s seconds" % (framecount,(end-start)/framecount, end-start))
-            # Writes a restart file
-            if (framecount % params["Rfreq"] == 0):
-                g = open("restart_distribution.data.pkl","wb")
-                pickle.dump(data,g)
-                g.close()
-                h = open("restart_distribution.energy.pkl","wb")
-                pickle.dump(energy,h)
-                h.close()
-            if (framecount % params["stop"] == 0): break
-        manipulate_data(params,data,energy)
+                line=f.readline()
+                if not line:
+                    break
+                # Reads in the frame into the dictionary, "frame"
+                for l in range(lperframe-2):
+                    line=f.readline()
+                    vals=line.strip().split()
+                    frame["ra"].append(np.array((float(vals[1])/frame["L"],float(vals[2])/frame["L"],float(vals[3])/frame["L"])))
+                    frame["r"].append([[float(vals[1])/frame["L"]],[float(vals[2])/frame["L"]],[float(vals[3])/frame["L"]]])
+                    # increments mol number every 3 atoms
+                # Do analysis
+                frame["r"]=np.array(frame["r"])
+                frame["dr"]=distance_wrap(frame["r"])
+                roo,roh,ctheta,asp,goo,goh,ghh=do_analysis(params,frame)
+                # The following section increments storage vectors
+                data["Roo"].append(roo)
+                data["Roh"].append(roh)
+                data["Ctheta"].append(ctheta*180.0/np.pi)
+                data["Asphere"].append(asp)
+                data["Groo"].append(goo)
+                data["Groh"].append(goh)
+                data["Grhh"].append(ghh)
+                # End storage Vector section
+                framecount+=1
+                end = time.time()
+                if (framecount % 10 == 0): print("frame: %s \ntime_per_frame: %s seconds\ntotal_time: %s seconds" % (framecount,(end-start)/framecount, end-start))
+                # Writes a restart file
+                if (framecount % params["Rfreq"] == 0):
+                    g = open("restart_distribution.data.pkl","wb")
+                    pickle.dump(data,g)
+                    g.close()
+                    h = open("restart_distribution.energy.pkl","wb")
+                    pickle.dump(energy,h)
+                    h.close()
+                if (framecount % params["stop"] == 0): break
+            manipulate_data(params,data,energy)
+    else:
+        with gzip.open(params["filename"],'rt') as f:
+            lperframe=natoms+2
+            frame=[]
+            framecount=0
+            # Each iteration is a loop over frames.
+            start = time.time()
+            while True:
+                # Creates dictionary
+                frame={ "type":atype,"co":co, "r":[],"ra":[],"mol":mol, "h":h, "o":o,"L":Lval[framecount]}
+                # Skips the initial two lines of the xyz file
+                line=f.readline()
+                line=f.readline()
+                if not line:
+                    break
+                # Reads in the frame into the dictionary, "frame"
+                for l in range(lperframe-2):
+                    line=f.readline()
+                    vals=line.strip().split()
+                    frame["ra"].append(np.array((float(vals[1])/frame["L"],float(vals[2])/frame["L"],float(vals[3])/frame["L"])))
+                    frame["r"].append([[float(vals[1])/frame["L"]],[float(vals[2])/frame["L"]],[float(vals[3])/frame["L"]]])
+                    # increments mol number every 3 atoms
+                # Do analysis
+                frame["r"]=np.array(frame["r"])
+                frame["dr"]=distance_wrap(frame["r"])
+                roo,roh,ctheta,asp,goo,goh,ghh=do_analysis(params,frame)
+                # The following section increments storage vectors
+                data["Roo"].append(roo)
+                data["Roh"].append(roh)
+                data["Ctheta"].append(ctheta*180.0/np.pi)
+                data["Asphere"].append(asp)
+                data["Groo"].append(goo)
+                data["Groh"].append(goh)
+                data["Grhh"].append(ghh)
+                # End storage Vector section
+                framecount+=1
+                end = time.time()
+                if (framecount % 10 == 0): print("frame: %s \ntime_per_frame: %s seconds\ntotal_time: %s seconds" % (framecount,(end-start)/framecount, end-start))
+                # Writes a restart file
+                if (framecount % params["Rfreq"] == 0):
+                    g = open("restart_distribution.data.pkl","wb")
+                    pickle.dump(data,g)
+                    g.close()
+                    h = open("restart_distribution.energy.pkl","wb")
+                    pickle.dump(energy,h)
+                    h.close()
+                if (framecount % params["stop"] == 0): break
+            manipulate_data(params,data,energy)
 
     return
 
@@ -195,6 +277,7 @@ parser.add_argument('-frame_freq', default=100, help='Integer value, number of c
 parser.add_argument('-dr', default=0.1, help='Float value, bin width for rdf')
 parser.add_argument('-rmax', default=10.0, help='Float value, end of rdf')
 parser.add_argument('-RDF', default=0, help='Integer value, 1 is on, 0 is off')
+parser.add_argument('-zipped', default=False, help='Boolean value, True/False')
 
 args = parser.parse_args()
 
@@ -202,12 +285,13 @@ args = parser.parse_args()
 kb=0.0019872041
 
 # Dictionary that holds all the information about the simulation run.
-inputparams={"filename":str(args.f), "stop":int(args.nconfigs), "htype":int(args.hatom), "otype":int(args.oatom), "ovtype":str(args.order), "nblocks":int(args.nblocks), "T":float(args.T), "P":float(args.P),"pre":str(args.prepend), "aspon":int(args.asphere),"R":int(args.restart), "numR":int(args.restno),'Rfreq':int(args.rest_freq),'framefreq':int(args.frame_freq),'dr':float(args.dr), 'rmax':float(args.rmax),'rdfon':int(args.RDF)}
+inputparams={"filename":str(args.f), "stop":int(args.nconfigs), "htype":int(args.hatom), "otype":int(args.oatom), "ovtype":str(args.order), "nblocks":int(args.nblocks), "T":float(args.T), "P":float(args.P),"pre":str(args.prepend), "aspon":int(args.asphere),"R":int(args.restart), "numR":int(args.restno),'Rfreq':int(args.rest_freq),'framefreq':int(args.frame_freq),'dr':float(args.dr), 'rmax':float(args.rmax),'rdfon':int(args.RDF),'zipped':bool(args.zipped)}
 inputparams["rdfbins"]=int(inputparams["rmax"]/inputparams["dr"])
 
 print("Welcome to the Distribution Predictor!")
 if(inputparams["aspon"]==1): print("Note: Asphericity calculation is on, calcualtion will be much slower.")
 if(inputparams["rdfon"]==1): print("Note: RDF calculation is on, calcualtion will be much slower.")
+if(inputparams["zipped"]==True): print("Note: Zipped trajectory files are being read/created, this could be slower.")
 
 
 if (inputparams["R"] == 0):
