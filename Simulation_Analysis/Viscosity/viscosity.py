@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 This code calculates the shear viscosity through the Green-Kubo relation.
 
