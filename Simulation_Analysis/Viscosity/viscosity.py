@@ -71,6 +71,17 @@ def calc_eta(params,logdata,to):
         eta.append(np.trapz(avP,tvals))
     return eta,avP
 
+def Hummer_Correction(params,logdata, eta, bl_eta):
+    conv=1E17
+    xi=2.837297
+    Dcorr = consts["kb"]*params["T"]*xi/(6.0 * np.pi * eta * logdata["Volume"][0]**(1/3.))*conv
+    bl_Dcorr=[]
+    for b in range(params["nblocks"]):
+        bl_Dcorr.append(consts["kb"]*params["T"]*xi/(6.0 * np.pi * bl_eta[b] * logdata["Volume"][0]**(1/3.)))*conv
+    std_Dcorr = np.std(bl_Dcorr)
+    return Dcorr, std_Dcorr
+
+
 def calculate_visc(params):
     """
     The actual code that does the calculation.
@@ -92,17 +103,26 @@ def calculate_visc(params):
     # Write Average Files
     av_eta=np.average(finaldata["eta"],axis=0)*consts["atmtobar"]**2.*consts["UnitstocentiPoise"]
     av_betaV_avP=np.average(finaldata["avP"],axis=0)*consts["atmtobar"]**2.*consts["UnitstocPperps"]
+    eta=np.average(av_eta[-100:])
     nperb=int(total_to/params["nblocks"])
     bl_av_eta,bl_av_betaV_avP=[],[]
+    bl_eta=[]
     for b in range(params["nblocks"]):
         bstart=b*nperb
         bend=(b+1)*nperb
         bl_av_eta.append(np.average(finaldata["eta"][bstart:bend],axis=0)*consts["atmtobar"]**2.*consts["UnitstocentiPoise"])
         bl_av_betaV_avP.append(np.average(finaldata["avP"][bstart:bend],axis=0)*consts["atmtobar"]**2.*consts["UnitstocPperps"])
         np.savetxt("bl_"+str(b)+"_shear.dat", np.c_[times,bl_av_eta[b],bl_av_betaV_avP[b]])
-    std_eta=np.std(bl_av_eta,axis=0)*params["tval"]
+        bl_eta.append(np.average(bl_av_betaV_avP[b][-100:]))
+    std_eta=np.std(bl_eta)*params["tval"]
+    std_av_eta=np.std(bl_av_eta,axis=0)*params["tval"]
     std_betaV_avP=np.std(bl_av_betaV_avP,axis=0)*params["tval"]
-    np.savetxt("shear.dat", np.c_[times,av_eta,std_eta,av_betaV_avP,std_betaV_avP])
+    np.savetxt("shear.dat", np.c_[times,av_eta,std_av_eta,av_betaV_avP,std_betaV_avP])
+    Dcorr, std_Dcorr = Hummer_Correction(params,logdata,eta,bl_eta)
+    g = open('viscosity.dat','w')
+    g.write("#Viscosity Err Dcorrect Err\n")
+    g.write("%s %s %s %s\n" % (eta, std_eta, Dcorr, std_Dcorr))
+    g.close()
     return
 
 
