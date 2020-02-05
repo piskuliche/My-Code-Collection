@@ -14,11 +14,9 @@ if args.n == 1:
     uniquename=True
 
 
-print(uniquename,user)
 
 lines=os.popen('squeue -u "%s" -o  "%%.18i %%.9P %%.12j %%.8u %%.2t %%.10M %%.6D %%R"' % user).read().split('\n')
 lines.pop()
-print(len(lines))
 
 job_printed=[]
 names_printed=[]
@@ -65,15 +63,15 @@ for line in lines:
             pending.append(line)
             job_printed.append(jid)
 
-print("----------------")
-print("%d RUNNING      " % rcount)
-print("----------------")
+print("------------------------------------------------------------------------------------------------")
+print("                                       %d of %d RUNNING      " % (len(running),rcount))
+print("------------------------------------------------------------------------------------------------")
 print(start)
 for job in running:
     print(job)
-print("----------------")
-print("%d PENDING      " % pdcount)
-print("----------------")
+print("------------------------------------------------------------------------------------------------")
+print("                                       %d of %d PENDING      " % (len(pending),pdcount))
+print("------------------------------------------------------------------------------------------------")
 print(start)
 for job in pending:
     print(job)
