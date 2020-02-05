@@ -25,11 +25,14 @@ names_printed=[]
 running=[]
 pending=[]
 start=[]
+rcount=0
+pdcount=0
 for line in lines:
     if "JOBID" in line:
         start=line
     elif "R" in line.split()[4]:
         jid=line.split()[0]
+        rcount+=1
         if "_" in jid:
             job=jid.split('_')[0]
             if job not in job_printed:
@@ -46,6 +49,7 @@ for line in lines:
             job_printed.append(jid)
     elif "PD" in line.split()[4]:
         jid=line.split()[0]
+        pdcount+=1
         if "_" in jid:
             job=jid.split('_')[0]
             if job not in job_printed:
@@ -62,13 +66,13 @@ for line in lines:
             job_printed.append(jid)
 
 print("----------------")
-print("    RUNNING     ")
+print("%d RUNNING      " % rcount)
 print("----------------")
 print(start)
 for job in running:
     print(job)
 print("----------------")
-print("    PENDING     ")
+print("%d PENDING      " % pdcount)
 print("----------------")
 print(start)
 for job in pending:
