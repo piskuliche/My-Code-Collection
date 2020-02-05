@@ -28,14 +28,13 @@ ln -s $homepath/Simulation_Analysis/Mean-Squared-Displacement/fit_msds.py bin/ms
 ln -s $homepath/Simulation_Analysis/Mean-Squared-Displacement/parse_msds.py bin/msd
 ln -s $homepath/Util/general_system/build.py bin/build
 ln -s $homepath/Util/general_system/molec_generator.py bin/build
+ln -s $homepath/Util/Slurm_Queue/Q_check.py bin/utils
 ln -s $homepath/Simulation_Codes/MD_Widom/conv_connectivity.py bin/widom
 ln -s $homepath/Simulation_Codes/MD_Widom/gen_ins.py bin/widom
 ln -s $homepath/Simulation_Codes/MD_Widom/widom_backbone.py bin/widom
 ln -s $homepath/Simulation_Codes/MD_Widom/widom_calculation.py bin/widom
 ln -s $homepath/Simulation_Codes/MD_Widom/widom_farmer.py bin/widom
 ln -s $homepath/Simulation_Analysis/Pair-Distribution/calc_gofr.exe bin/gofr
-ln -s $homepath/Simulation_Analysis/Pair-Distribution/calc_egofr.exe bin/gofr
-ln -s $homepath/Simulation_Analysis/Pair-Distribution/calc_e2gofr.exe bin/gofr
 ln -s $homepath/Simulation_Analysis/Pair-Distribution/setup_gofr.py bin/gofr
 ln -s $homepath/Simulation_Analysis/Pair-Distribution/manipulate_gofr.py bin/gofr
 ln -s $homepath/Simulation_Analysis/Atomic-Gyration/calc_atom_gyro.exe bin/gyro
