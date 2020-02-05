@@ -16,7 +16,7 @@ if args.n == 1:
 
 print(uniquename,user)
 
-lines=os.popen('squeue -u "%s"' % user).read().split('\n')
+lines=os.popen('squeue -u "%s" -o  "%%.18i %%.9P %%.12j %%.8u %%.2t %%.10M %%.6D %%R"' % user).read().split('\n')
 lines.pop()
 print(len(lines))
 
