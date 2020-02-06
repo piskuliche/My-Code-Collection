@@ -18,8 +18,10 @@ if args.n == 1:
 lines=os.popen('squeue -u "%s" -o  "%%.18i %%.9P %%.12j %%.8u %%.2t %%.10M %%.6D %%R"' % user).read().split('\n')
 lines.pop()
 
-job_printed=[]
-names_printed=[]
+rjob_printed=[]
+pdjob_printed=[]
+rnames_printed=[]
+pdnames_printed=[]
 running=[]
 pending=[]
 start=[]
@@ -33,35 +35,35 @@ for line in lines:
         rcount+=1
         if "_" in jid:
             job=jid.split('_')[0]
-            if job not in job_printed:
-                job_printed.append(job)
+            if job not in rjob_printed:
+                rjob_printed.append(job)
                 if uniquename is True:
                     name=line.split()[2]
                     if name not in names_printed:
                         running.append(line)
-                        names_printed.append(name)
+                        rnames_printed.append(name)
                 else:
                     running.append(line)
         else:
             running.append(line)
-            job_printed.append(jid)
+            rjob_printed.append(jid)
     elif "PD" in line.split()[4]:
         jid=line.split()[0]
         pdcount+=1
         if "_" in jid:
             job=jid.split('_')[0]
-            if job not in job_printed:
-                job_printed.append(job)
+            if job not in pdjob_printed:
+                pdjob_printed.append(job)
                 if uniquename is True:
                     name=line.split()[2]
                     if name not in names_printed:
                         pending.append(line)
-                        names_printed.append(name)
+                        pdnames_printed.append(name)
                 else:
                     pending.append(line)
         else:
             pending.append(line)
-            job_printed.append(jid)
+            pdjob_printed.append(jid)
 
 print("------------------------------------------------------------------------------------------------")
 print("                                       %d of %d RUNNING      " % (len(running),rcount))
