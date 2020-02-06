@@ -39,7 +39,7 @@ for line in lines:
                 rjob_printed.append(job)
                 if uniquename is True:
                     name=line.split()[2]
-                    if name not in names_printed:
+                    if name not in rnames_printed:
                         running.append(line)
                         rnames_printed.append(name)
                 else:
@@ -56,7 +56,7 @@ for line in lines:
                 pdjob_printed.append(job)
                 if uniquename is True:
                     name=line.split()[2]
-                    if name not in names_printed:
+                    if name not in pdnames_printed:
                         pending.append(line)
                         pdnames_printed.append(name)
                 else:
