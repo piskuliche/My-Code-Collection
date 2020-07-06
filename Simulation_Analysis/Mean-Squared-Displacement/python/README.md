@@ -9,19 +9,32 @@ usage: msd.py [-h] [-fname FNAME] [-comp COMP] [-N N] [-corr\_len CORR\_LEN]
 
 optional arguments:
   -h, --help            show this help message and exit
+  
   -fname FNAME          The file name for the trajectory
+  
   -comp COMP            This is the name of each component (repeatable)
+  
   -N N                  The number of each component (repeatable)
+  
   -corr\_len CORR\_LEN    Correlation length
+  
   -or\_split OR\_SPLIT    Separation of origins
+  
   -timestep TIMESTEP    Timestep (in ps)
+  
   -skip SKIP            Lines to skip at beginning of each frame
+  
   -nframes NFRAMES      Number of total frames
+  
   -Lfile LFILE          File with box length
-  -op OP                Options
+  
+  -op OP                Options ([0] Reads trajectory then calculates msd, [1] reads pckl then calculates msd)
+  
   -unwrap UNWRAP        [1] if need to unwrap, [0] if already unwrapped
+  
   -start\_conf START\_CONF
                         Starting configuration
+                        
   -write\_pckl WRITE\_PCKL
                         Write a pckl file with configs, [1] yes, [0] no
 
