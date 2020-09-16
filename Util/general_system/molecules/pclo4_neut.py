@@ -1,9 +1,9 @@
 import numpy as np
 def define_molec(num_spec, blength):
-    mol_file = "tmp/pclo4_eilmes.xyz"
+    mol_file = "tmp/pclo4_neut.xyz"
     mol = open(mol_file, 'w')
     mol.write("5\n")
-    mol.write("pclo4_eilmes\n")
+    mol.write("pclo4_neut\n")
     mol.write("Cl -0.00000 -0.00000 0.00000\n")
     mol.write("O1 1.54700 -0.00000 0.00000\n")
     mol.write("O2 -0.51570 1.45850 0.00000\n")
@@ -14,7 +14,7 @@ def define_molec(num_spec, blength):
     atms = {
         'name':["Cl","O1","O2","O3","O4"],
         'atype':[1,2,2,2,2],
-        'q':[0.974754,-0.4936885,-0.4936885,-0.4936885,-0.4936885],
+        'q':[0.77984,-0.19496,-0.19496,-0.19496,-0.19496],
         'eps':[0.25,0.1561,0.1561,0.1561,0.1561],
         'rmin':[],
         'sig':[3.996,3.5918,3.5918,3.5918,3.5918],

@@ -82,7 +82,7 @@ def gen_packmol():
     L = blength-2.0
     pmolfile = 'system.pmol'
     pm = open(pmolfile, 'w')
-    pm.write("tolerance 2.0\n")
+    pm.write("tolerance 2.5\n")
     pm.write("filetype xyz\n")
     pm.write("output system.xyz\n")
     pm.write("\n")
@@ -316,7 +316,7 @@ def write_lammps_dihedralcoeffs():
         lmps.write("# Dihedral Coeffs Species %s\n" % i)
         for dihedral in DIHS[i]['name']:
             if DIHS[i][dihedral][0]+start not in usedtyps:
-                lmps.write("dihedral_coeff %s %9.5f %s %d 0.0\n" % (DIHS[i][dihedral][0]+start, DIHS[i][dihedral][1]*conv_force[i], DIHS[i][dihedral][2], DIHS[i][dihedral][3]))
+                lmps.write("dihedral_coeff %s %9.5f %s %s 0.0\n" % (DIHS[i][dihedral][0]+start, DIHS[i][dihedral][1]*conv_force[i], DIHS[i][dihedral][2], DIHS[i][dihedral][3]))
                 usedtyps.append(DIHS[i][dihedral][0]+start)
         if usedtyps:
             start = max(usedtyps)

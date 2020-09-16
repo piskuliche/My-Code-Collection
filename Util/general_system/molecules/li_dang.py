@@ -11,7 +11,7 @@ def define_molec(num_spec, blength):
         'name':["Li"],
         'atype':[1],
         'q':[1.0],
-        'eps':[0.018278],
+        'eps':[0.016013],
         'rmin':[],
         'sig':[2.337],
         'mass':[6.941],
