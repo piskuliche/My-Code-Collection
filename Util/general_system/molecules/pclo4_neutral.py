@@ -1,6 +1,6 @@
 import numpy as np
 def define_molec(num_spec, blength):
-    mol_file = "tmp/pclo4_reduced.xyz"
+    mol_file = "tmp/pclo4_neutral.xyz"
     mol = open(mol_file, 'w')
     mol.write("5\n")
     mol.write("pclo4_reduced\n")
