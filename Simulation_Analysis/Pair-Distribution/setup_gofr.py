@@ -52,6 +52,9 @@ def read_mols(filename):
                 if line.strip()=="":
                     eskip-=1
     id,mols,typ,Q = np.genfromtxt(filename, usecols=(0,1,2,3), unpack=True, skip_header=sskip, skip_footer=eskip)
+    tmp, mols = zip(*sorted(zip(id,mols)))
+    tmp, typ = zip(*sorted(zip(id,typ)))
+    id, Q   = zip(*sorted(zip(id,Q)))
     np.savetxt('molinfo.dat', np.c_[id,mols,typ,Q], fmt=('%d','%d','%d', '%1.4f'))
     print('Molecular information saved to molinfo.dat')
     print('There are %d atoms and %d items in molinfo.dat' % (natoms, len(mols)))

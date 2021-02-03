@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import numpy as np
 import pickle
 import argparse,gzip
@@ -94,8 +95,9 @@ def choose_calc_msd(i):
             msd.append(tmpmsd)
         x = np.arange(nframes)
         time = np.multiply(x,timestep)[:corr_len]
-        if write_pckl==1: pickle.dump(msd,open('msd.pckl','wb'),protocol=4)
-        np.savetxt("msd_"+mol+"_out.dat",np.c_[time,np.average(msd,axis=0)])
+        if write_pckl==1: pickle.dump(msd,open(extra+'_msd_'+mol+'.pckl','wb'),protocol=4)
+        np.savetxt(extra+"_msd_"+mol+"_out.dat",np.c_[time,np.average(msd,axis=0)])
+        return time, np.average(msd,axis=0)
     def calc_msd_wrapped(r,n,mol):
         last_t0 = nframes-corr_len
         msd = []
@@ -110,12 +112,24 @@ def choose_calc_msd(i):
             msd.append(tmpmsd)
         x = np.arange(nframes)
         time = np.multiply(x,timestep)[:corr_len]
-        if write_pckl==1: pickle.dump(msd,open('msd.pckl','wb'),protocol=4)
-        np.savetxt("msd_"+mol+"_out.dat",np.c_[time,np.average(msd,axis=0)])
+        if write_pckl==1: pickle.dump(msd,open(extra+'_msd_'+mol+'.pckl','wb'),protocol=4)
+        np.savetxt(extra+"_msd_"+mol+"_out.dat",np.c_[time,np.average(msd,axis=0)])
+        return time, np.average(msd,axis=0)
     if i==0: 
         return calc_msd_unwrapped
     else:
         return calc_msd_wrapped
+
+def fit_msd(time,msd):
+    def linear(x,m,b):
+        return m*x + b
+    from scipy.optimize import curve_fit
+    def calc_D(m):
+        return m/0.6
+    cut = int(len(msd)*0.75)
+    popt,pcov = curve_fit(linear, time[cut:], msd[cut:])
+    m,b = popt
+    return calc_D(m) 
 
          
 
@@ -133,6 +147,7 @@ parser.add_argument('-op', default=0, type=int, help="Options")
 parser.add_argument('-unwrap', default=1, type=int, help="[1] if need to unwrap, [0] if already unwrapped")
 parser.add_argument('-start_conf',default=0, type=int, help="Starting configuration")
 parser.add_argument('-write_pckl', default=1, type=int, help="Write a pckl file with configs, [1] yes, [0] no")
+parser.add_argument('-tag', default="com_", type=str, help="What extra string to write to file names")
 args = parser.parse_args()
 
 filename   = args.fname
@@ -148,6 +163,8 @@ op         = args.op
 unwrap     = args.unwrap
 start_conf = args.start_conf
 write_pckl = args.write_pckl
+extra      = args.tag
+
 
 global f
 
@@ -168,14 +185,18 @@ RCOM={}
 if op == 0:
     print("Reading Trajectory")
     RCOM = read_traj(filename)
-    if write_pckl ==1: pickle.dump(RCOM,open('rcom.pckl','wb'),protocol=4)
+    if write_pckl ==1: pickle.dump(RCOM,open(extra+'_rcom.pckl','wb'),protocol=4)
     print("Center of Mass Coordinates Recorded")
 else:
     print("Reading COM")
-    RCOM = pickle.load(open('rcom.pckl','rb'))
+    RCOM = pickle.load(open(extra+'_rcom.pckl','rb'))
     print("COM is Read")
 
 calc_msd = choose_calc_msd(unwrap)
 
+msd, D = {},{}
+time = []
 for component in components:
-    calc_msd(RCOM[component],N[component],component)
+    time, msd[component]=calc_msd(RCOM[component],N[component],component)
+    D[component]=fit_msd(time,msd[component])
+    print("Diffusion coefficient  of %s is %s x 10^5 cm^2/s" % (component,D[component]))

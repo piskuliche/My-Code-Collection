@@ -63,7 +63,7 @@ def setup_cp2k():
     sub.write('#SBATCH --time=06:00:00\n')
     sub.write('#SBATCH --array 0-%s\n\n\n\n' % (bins))
 
-    sub.write('module load cp2k/6.0/popt\n\n')
+    sub.write('module load cp2k/6.1/popt\n\n')
 
 
     sub.write('cd $SLURM_ARRAY_TASK_ID\n')
@@ -87,7 +87,7 @@ def setup_cp2k():
         shutil.copyfile('inp_const.cp2k',str(i)+'/inp_const.cp2k')
         #shutil.copyfile('conv.py',str(i)+'/conv.py')
         # Outputs in angstrom, kcal/(mol*angstrom)
-        meta.write('%s/output.distance %s %s\n' % (str(i), ro[i] , K[i]*2.0*conv))
+        meta.write('%s/output.distance %s %s\n' % (str(i), ro[i] , K[i]*conv))
         
     meta.close()
     sub.close
@@ -101,17 +101,19 @@ def setup_lmps():
     meta = open('wham_metadata.info', 'w')
     sub = open('run_windows.sh','w')
 
-    sub.write('#MSUB -N wham_bin\n')
-    sub.write('#MSUB -q sixhour\n')
-    sub.write('#MSUB -j oe\n')
-    sub.write('#MSUB -d ./\n')
-    sub.write('#MSUB -l nodes=1:ppn=10:intel,mem=100gb,walltime=6:00:00\n')
-    sub.write('#MSUB -t 0-%s\n\n\n\n' % (bins))
+    sub.write('#SBATCH --job-name=wham_bin\n')
+    sub.write('#SBATCH --partition=sixhour\n')
+    sub.write('#SBATCH --constraint=intel\n')
+    sub.write('#SBATCH --output=output.log\n')
+    sub.write('#SBATCH --nodes=1\n')
+    sub.write('#SBATCH --ntasks-per-node=10\n')
+    sub.write('#SBATCH --time=6:00:00\n')
+    sub.write('#SBATCH --array 0-%s\n\n\n' % (bins))
 
-    sub.write('module load lammps/16Mar18\n\n')
+    sub.write('module load lammps/3Mar2020\n\n')
 
 
-    sub.write('cd $MOAB_JOBARRAYINDEX\n')
+    sub.write('cd $SLURM_ARRAY_TASK_ID\n')
     sub.write('mpirun lmp_mpi <in.ip \n')
     sub.write("sed -e '/TIMESTEP/,+8d' tmp.dump > lif.distance\n")
     sub.write('cd ../\n')

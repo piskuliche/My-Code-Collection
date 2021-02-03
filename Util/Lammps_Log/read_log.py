@@ -25,6 +25,7 @@ readflag=0
 runs = []
 runstep = -1
 items = []
+data={}
 with open(fname, 'r') as f:
     lines=f.readlines()
     for line in lines:

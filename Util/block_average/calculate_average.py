@@ -3,6 +3,7 @@
 import numpy as np
 import argparse
 import math
+from scipy import stats
 from argparse import RawTextHelpFormatter,SUPPRESS
 
 parser = argparse.ArgumentParser(description='''Finds average value of a data file''',formatter_class=RawTextHelpFormatter)
@@ -22,10 +23,10 @@ t_val=stats.t.ppf(0.975,block-1)
 
 
 data = np.genfromtxt(filename,dtype=float,usecols=(colnum),unpack=True, skip_header=skip)
-print len(data)
-print data
+print(len(data))
+print(data)
 blocksize=len(data)/block
-print blocksize
+print(blocksize)
 avg = np.zeros(block, dtype = float)
 AV=0
 for b in range(0,block,1):
@@ -33,10 +34,10 @@ for b in range(0,block,1):
     end=(b+1)*blocksize
     for i in range(start, end, 1):
         avg[b] = avg[b] + data[i]
-        print data[i]
-    print avg
+        print(data[i])
+    print(avg)
     avg[b] /= blocksize
-    print avg[b]
+    print(avg[b])
     AV+=avg[b]
 AV= AV / block
 if (block > 1):

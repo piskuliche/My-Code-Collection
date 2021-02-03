@@ -311,6 +311,8 @@ Program pairdist
       !$OMP PARALLEL DO schedule(static) DEFAULT(NONE) &
       !$OMP& PRIVATE(i, j, k, rij, rij_sq, b, nb, n1, n2, dr, cnt) &
       !$OMP& SHARED(nconfigs, selec1, selec2, r1, r2, g, h, h_id,rconfigs) 
+      open(50,file="g_vals.dat")
+      open(51,file="dr_vals.dat")
       do i=1, rconfigs
         do j=1, n1
             if (selec1 /= selec2) then
@@ -352,9 +354,15 @@ Program pairdist
         else 
             g(i,:) = g(i,:) / npth_id(i,:) ! Normalize based on ideal result
         endif
+        do b=1,nb
+            write(50,*) g(i,b)
+        enddo
         if (eweight == 1) eg(i,:) = en(i) * g(i,:) ! Weight by energies
         if (eweight == 1) e2g(i,:) = en(i)**2*g(i,:) ! Weight by sq energies
         if (eweight == 1) e3g(i,:) = en(i)**3*g(i,:) ! Weight by cub energies
+      enddo
+      do b=1,nb
+        write(51,*) (REAL(b)-0.5)*dr*L
       enddo
       !$OMP END PARALLEL DO
       write(*,*) "Tidying things up!"

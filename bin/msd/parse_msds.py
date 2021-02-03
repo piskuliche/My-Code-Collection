@@ -1,1 +1,1 @@
-/home/e924p726/My-Code-Collection//Simulation_Analysis/Mean-Squared-Displacement/parse_msds.py
+/home/e924p726/My-Code-Collection//Simulation_Analysis/Mean-Squared-Displacement/fortran/parse_msds.py

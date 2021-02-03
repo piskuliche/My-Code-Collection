@@ -6,12 +6,15 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('-u', default='e924p726', type=str, help='Username')
 parser.add_argument('-n', default=0, type=int, help='Print only unique names')
+parser.add_argument('-dcm', default=0, type=int, help='Watches for dcm jobs')
 args = parser.parse_args()
 
 user=args.u
 uniquename = False
 if args.n == 1:
     uniquename=True
+
+dcm=args.dcm
 
 
 
@@ -64,18 +67,28 @@ for line in lines:
         else:
             pending.append(line)
             pdjob_printed.append(jid)
-
-print("------------------------------------------------------------------------------------------------")
-print("                                       %d of %d RUNNING      " % (len(running),rcount))
-print("------------------------------------------------------------------------------------------------")
-print(start)
+if dcm == 0:
+    print("------------------------------------------------------------------------------------------------")
+    print("                                       %d of %d RUNNING      " % (len(running),rcount))
+    print("------------------------------------------------------------------------------------------------")
+    print(start)
+flag=0
 for job in running:
-    print(job)
-print("------------------------------------------------------------------------------------------------")
-print("                                       %d of %d PENDING      " % (len(pending),pdcount))
-print("------------------------------------------------------------------------------------------------")
-print(start)
+    if dcm == 0: print(job)
+    if str("do_fluc") in job: flag=1
+    if str("init_a") in job: flag=1
+    if str("grab") in job: flag=1
+    if str("direct") in job: flag=1
+if dcm == 0:
+    print("------------------------------------------------------------------------------------------------")
+    print("                                       %d of %d PENDING      " % (len(pending),pdcount))
+    print("------------------------------------------------------------------------------------------------")
+    print(start)
 for job in pending:
-    print(job)
-    
-
+    if dcm == 0: print(job)
+    if str("do_fluc") in job: flag=1
+    if str("init_a") in job: flag=1
+    if str("grab") in job: flag=1
+    if str("direct") in job: flag=1
+if dcm == 1 and flag == 0:
+    os.system("echo $'\e]9;DCM Job Complete \007'") 

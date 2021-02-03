@@ -22,10 +22,11 @@ ln -s $homepath/Util/CP2K/wham_generation/conv.py bin/wham_gen
 ln -s $homepath/Util/block_average/calculate_average.py bin/utils
 ln -s $homepath/Util/curve_fit/calculate_fit.py bin/utils
 ln -s $homepath/Util/Lammps_Log/read_log.py bin/utils
-ln -s $homepath/Simulation_Analysis/Mean-Squared-Displacement/calc_msd.exe bin/msd
-ln -s $homepath/Simulation_Analysis/Mean-Squared-Displacement/gen_msd_inps.py bin/msd
-ln -s $homepath/Simulation_Analysis/Mean-Squared-Displacement/fit_msds.py bin/msd
-ln -s $homepath/Simulation_Analysis/Mean-Squared-Displacement/parse_msds.py bin/msd
+ln -s $homepath/Simulation_Analysis/Mean-Squared-Displacement/fortran/calc_msd.exe bin/msd
+ln -s $homepath/Simulation_Analysis/Mean-Squared-Displacement/fortran/gen_msd_inps.py bin/msd
+ln -s $homepath/Simulation_Analysis/Mean-Squared-Displacement/fortran/fit_msds.py bin/msd
+ln -s $homepath/Simulation_Analysis/Mean-Squared-Displacement/fortran/parse_msds.py bin/msd
+ln -s $homepath/Simulation_Analysis/Mean-Squared-Displacement/python/msd.py bin/msd
 ln -s $homepath/Util/general_system/build.py bin/build
 ln -s $homepath/Util/general_system/molec_generator.py bin/build
 ln -s $homepath/Util/Slurm_Queue/Q_check.py bin/utils

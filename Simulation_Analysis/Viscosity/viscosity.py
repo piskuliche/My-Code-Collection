@@ -20,6 +20,10 @@ def read_log(inputparams):
     Extracts the data from the lammps log file and puts it into a data structure.
     """
     extract=["Step","Volume","Pxx", "Pyy", "Pzz", "Pxy", "Pxz", "Pyz"]
+    if inputparams["keyfile"] != "none":
+        inputparams["ekey"]=np.genfromtxt(inputparams["keyfile"],dtype=str)
+        for key in inputparams["ekey"]:
+            extract.append(key)
     data={}
     for item in extract:
         data[item]=[]
@@ -71,14 +75,11 @@ def calc_eta(params,logdata,to):
         eta.append(np.trapz(avP,tvals))
     return eta,avP
 
-def Hummer_Correction(params,logdata, eta, bl_eta):
+def Hummer_Correction(params,logdata, eta, err_eta):
     conv=1E17
     xi=2.837297
     Dcorr = consts["kb"]*params["T"]*xi/(6.0 * np.pi * eta * logdata["Volume"][0]**(1/3.))*conv
-    bl_Dcorr=[]
-    for b in range(params["nblocks"]):
-        bl_Dcorr.append(consts["kb"]*params["T"]*xi/(6.0 * np.pi * bl_eta[b] * logdata["Volume"][0]**(1/3.)))*conv
-    std_Dcorr = np.std(bl_Dcorr)
+    std_Dcorr = Dcorr*np.divide(err_eta,eta)
     return Dcorr, std_Dcorr
 
 
@@ -118,7 +119,8 @@ def calculate_visc(params):
     std_av_eta=np.std(bl_av_eta,axis=0)*params["tval"]
     std_betaV_avP=np.std(bl_av_betaV_avP,axis=0)*params["tval"]
     np.savetxt("shear.dat", np.c_[times,av_eta,std_av_eta,av_betaV_avP,std_betaV_avP])
-    Dcorr, std_Dcorr = Hummer_Correction(params,logdata,eta,bl_eta)
+    print(len(bl_eta))
+    Dcorr, std_Dcorr = Hummer_Correction(params,logdata,eta,std_eta)
     g = open('viscosity.dat','w')
     g.write("#Viscosity Err Dcorrect Err\n")
     g.write("%s %s %s %s\n" % (eta, std_eta, Dcorr, std_Dcorr))
@@ -134,9 +136,11 @@ parser.add_argument('-to', default=10, type=int, help='Number of steps between o
 parser.add_argument('-len', default=500, type=int, help='Number of steps to calculate each corr_func')
 parser.add_argument('-T', default=298.15, type=float, help='Temperature of simulation')
 parser.add_argument('-timestep', default=1.0, type=float, help='Timestep in fs')
+parser.add_argument('-keyfile',default="none", type=str, help="File with energy components in a column to use")
 args= parser.parse_args()
 
-inputparams={"logfile":args.f, "skip":args.skip, "nblocks":args.nb,"length":args.len, "tosep":args.to, "T":args.T, "dt":args.timestep}
+
+inputparams={"logfile":args.f, "skip":args.skip, "nblocks":args.nb,"length":args.len, "tosep":args.to, "T":args.T, "dt":args.timestep,"keyfile":args.keyfile}
 inputparams["tval"]=stats.t.ppf(0.975,inputparams["nblocks"]-1)/np.sqrt(inputparams["nblocks"])
 
 calculate_visc(inputparams)

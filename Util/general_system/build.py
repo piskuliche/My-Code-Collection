@@ -43,7 +43,8 @@ if not os.path.exists('./connect'):
 # Read the NML file
 try:
     nml = json.load(sys.stdin)
-except json.JSONDecodeError:
+except ValueError:
+#json.JSONDecodeError:
     print('Exiting on Invalid JSON format')
     sys.exit()
 
@@ -82,7 +83,7 @@ def gen_packmol():
     L = blength-2.0
     pmolfile = 'system.pmol'
     pm = open(pmolfile, 'w')
-    pm.write("tolerance 2.5\n")
+    pm.write("tolerance 2.0\n")
     pm.write("filetype xyz\n")
     pm.write("output system.xyz\n")
     pm.write("\n")
@@ -316,7 +317,7 @@ def write_lammps_dihedralcoeffs():
         lmps.write("# Dihedral Coeffs Species %s\n" % i)
         for dihedral in DIHS[i]['name']:
             if DIHS[i][dihedral][0]+start not in usedtyps:
-                lmps.write("dihedral_coeff %s %9.5f %s %s 0.0\n" % (DIHS[i][dihedral][0]+start, DIHS[i][dihedral][1]*conv_force[i], DIHS[i][dihedral][2], DIHS[i][dihedral][3]))
+                lmps.write("dihedral_coeff %s %9.5f %s %d 0.0\n" % (DIHS[i][dihedral][0]+start, DIHS[i][dihedral][1]*conv_force[i], DIHS[i][dihedral][2], DIHS[i][dihedral][3]))
                 usedtyps.append(DIHS[i][dihedral][0]+start)
         if usedtyps:
             start = max(usedtyps)
@@ -602,7 +603,7 @@ def connectflag(NCHAR):
 
 
 NCHAR, NTYPS, ATMS, BNDS, ANGS, DIHS, IMPS = gen_packmol()
-subprocess.call(["/panfs/pfs.local/work/laird/e924p726/thompsonwork/Programs/Executables/packmol < system.pmol > packmol.output"], shell=True)
+subprocess.call(["/panfs/pfs.local/home/s393s653/programs/Executable/packmol < system.pmol > packmol.output"], shell=True)
 x,y,z = np.genfromtxt('system.xyz', usecols=(1,2,3), unpack=True, skip_header=2)
 flags = connectflag(NCHAR)
 write_header()
