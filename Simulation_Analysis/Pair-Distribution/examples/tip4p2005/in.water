@@ -1,0 +1,53 @@
+# SPC/e water box
+# 298.15 K, 1 bar
+
+### Run Lengths
+variable ns equal 1000000
+variable ps equal 1000
+variable tol equal 1.0e-4
+###
+
+### User Config
+variable num_ns equal 50
+variable sep_config equal 100
+variable T equal 298.15
+variable P equal 1
+variable ts equal 1.0
+###
+
+### Calculations
+variable prod_step equal ${ns}*${num_ns}
+variable Patm equal $P*0.986923
+###
+
+units		real	
+atom_style	full
+
+boundary        p p p
+
+include lmps.include.coeffs
+
+neighbor        2.0 bin
+neigh_modify	every 2 delay 0 check yes
+
+velocity	all create $T 234233 dist gaussian
+fix     1 all shake ${tol} 20 0 b 1 a 1
+
+timestep ${ts}
+
+thermo_style    custom step time etotal temp pe ke evdwl ecoul ebond eangle elong vol press pxx pyy pzz pxy pxz pyz density
+thermo		${sep_config}
+
+fix             2 all npt temp $T $T 100.0 iso ${Patm} ${Patm} 1000.0 
+
+# Equilibration
+run             ${ns}
+
+thermo_modify   lost warn
+
+dump traj all custom ${sep_config} traj.xyz id x y z
+dump_modify traj sort id
+
+run             ${prod_step}
+
+
