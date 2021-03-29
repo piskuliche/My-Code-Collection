@@ -13,6 +13,8 @@ mkdir bin/gofr
 mkdir bin/gyro
 mkdir bin/gendist
 mkdir bin/visc
+mkdir bin/occupancy
+mkdir bin/wham
 
 
 # Sets up the symlinks
@@ -27,6 +29,8 @@ ln -s $homepath/Simulation_Analysis/Mean-Squared-Displacement/fortran/gen_msd_in
 ln -s $homepath/Simulation_Analysis/Mean-Squared-Displacement/fortran/fit_msds.py bin/msd
 ln -s $homepath/Simulation_Analysis/Mean-Squared-Displacement/fortran/parse_msds.py bin/msd
 ln -s $homepath/Simulation_Analysis/Mean-Squared-Displacement/python/msd.py bin/msd
+ln -s $homepath/Simulation_Analysis/Occupancy-Counter/solv_shell bin/occupancy
+ln -s $homepath/Simulation_Analysis/Occupancy-Counter/analyze-solv.py bin/occupancy
 ln -s $homepath/Util/general_system/build.py bin/build
 ln -s $homepath/Util/general_system/molec_generator.py bin/build
 ln -s $homepath/Util/Slurm_Queue/Q_check.py bin/utils
@@ -42,6 +46,8 @@ ln -s $homepath/Simulation_Analysis/Atomic-Gyration/calc_atom_gyro.exe bin/gyro
 ln -s $homepath/Simulation_Analysis/Atomic-Gyration/setup_gyro.py bin/gyro
 ln -s $homepath/Simulation_Analysis/Predict_Distributions/general_distribution.py bin/gendist
 ln -s $homepath/Simulation_Analysis/Viscosity/viscosity.py bin/visc
+ln -s $homepath/Simulation_Codes/WHAM/setup_wham.py bin/wham
+ln -s $homepath/Simulation_Codes/WHAM/wham.py bin/wham
 
 chmod 777 bin/msd/*
 chmod 777 bin/wham_gen/*
@@ -52,3 +58,5 @@ chmod 777 bin/gofr/*
 chmod 777 bin/gyro/*
 chmod 777 bin/gendist/*
 chmod 777 bin/visc/*
+chmod 777 bin/occupancy/*
+chmod 777 bin/wham/*

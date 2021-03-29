@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import numpy as np
 from scipy import stats
 
@@ -40,11 +41,32 @@ f=open("acryl_solvation_values.dat",'w')
 g=open("acryl_solv_scale.dat",'w')
 h=open("acryl_hbnd_values.dat",'w')
 h2=open("acryl_hbnd_scale.dat",'w')
+Nsum=0.0
+Nerr=0.0
+Osum=0.0
+Oerr=0.0
+Ncount=0
+Ocount=0
 for key in av:
     f.write("%s %s %s\n" % (name[key],av[key]/nacryl,err[key]/nacryl))
     g.write("%s %s\n" % (name[key],av[key]/nacryl/(np.max(dv)/nacryl)))
     h.write("%s %s %s\n" % (name[key],avhbnd[key]/nacryl,erhbnd[key]/nacryl))
     h2.write("%s %s\n" % (name[key],avhbnd[key]/nacryl/(np.max(dv2)/nacryl)))
+    if "N" in key:
+        Nsum += avhbnd[key]/nacryl
+        Nerr += erhbnd[key]/nacryl
+        Ncount+=1
+    if "O" in key:
+        Osum += avhbnd[key]/nacryl
+        Oerr += erhbnd[key]/nacryl
+        Ocount+=1
+chk=open("N-hbondvals.dat",'w')
+chk.write("%s %s %s\n" % (Ncount, Nsum/Ncount, Nerr/Ncount))
+chk.close()
+chkO=open("O-hbondvals.dat",'w')
+chkO.write("%s %s %s\n" % (Ocount, Osum/Ocount, Oerr/Ocount))
+chkO.close()
+
 f.close()
 g.close()
 h.close()
