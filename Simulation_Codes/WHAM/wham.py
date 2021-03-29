@@ -42,8 +42,8 @@ def wham_iteration(F):
     isconverged=False
     if (dF < tolerance):
         isconverged=True
-        np.savetxt("mywham.out", np.c_[xvals,-kbT*np.log(P)])
-        np.savetxt("myF.out", np.c_[F])
+        np.savetxt("wham_pmf.out", np.c_[xvals,-kbT*np.log(P)-np.min(-kbT*np.log(P)),P])
+        np.savetxt("wham_F.out", np.c_[F-np.min(F)])
     return F, isconverged
 
 
@@ -53,6 +53,8 @@ parser.add_argument('-rlow', default=1.5,type=float, help='Low cutoff')
 parser.add_argument('-rhigh', default=8,type=float, help='High cutoff')
 parser.add_argument('-nbin', default=100, type=int, help='Histogram bins')
 parser.add_argument('-k', default=11.0, type=float, help='Force constant')
+parser.add_argument('-plot', default=0, type=int, help='If 1, plots histograms in matplotlib')
+parser.add_argument('-subfile', default="lif.distance", type=str, help="File name for colvar in subdirectory")
 parser.add_argument('-unit', default=1, type=int, help="[0] Angstrom [1] bohr (output always angstrom, kcal/mol)")
 args = parser.parse_args()
 
@@ -62,12 +64,15 @@ rhi=args.rhigh
 nbins=args.nbin
 k=args.k
 unit=args.unit
+subfile=args.subfile
+shouldplot=args.plot
 
 # Convert Units
 BohrToAng=0.529177
 convdist=1.0
 convk=1.0
 if unit==1:
+    print("Converting r,k to units of angstroms, kcal/mol/ang^2 from bohr, hartree/bohr^2")
     convdist=BohrToAng
     convk=627.509/(BohrToAng**2.)
 
@@ -86,12 +91,12 @@ xF=np.linspace(rlow,rhi,num=Nwindows)
 U=[]
 xc=np.genfromtxt("wham_metadata.info",usecols=1,unpack=True)
 for window in range(Nwindows):
-    data=np.genfromtxt(str(window)+"/lif.distance", usecols=1,unpack=True)
+    data=np.genfromtxt(str(window)+"/"+subfile, usecols=1,unpack=True)
     data=data*convdist
     hist,bins=np.histogram(data,bins=nbins,range=(rlow,rhi),density=False)
     width = 0.7 * (bins[1] - bins[0])
     center = (bins[:-1] + bins[1:]) / 2
-    #plt.bar(center, hist, align='center', width=width)
+    plt.bar(center, hist, align='center', width=width)
     ni.append(hist)
     cnt.append(np.sum(hist))
     dx=np.subtract(xc[window],xvals)
@@ -99,7 +104,7 @@ for window in range(Nwindows):
 
 U=np.array(U)
 
-#plt.show()
+if shouldplot==1: plt.show()
 isconverged = False
 tolerance = 1e-8
 maxiter=10000
