@@ -22,4 +22,5 @@ Building the codes are very simple, just open make.sh and modify the homepath va
 bash make.sh
 ```
 
-Questions? Email me at piskulichz@gmail.com
+
+Questions? Email me at piskulichZ@gmail.com
