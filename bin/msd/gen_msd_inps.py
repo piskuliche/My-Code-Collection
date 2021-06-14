@@ -1,1 +1,1 @@
-/home/e924p726/My-Code-Collection//Simulation_Analysis/Mean-Squared-Displacement/fortran/gen_msd_inps.py
+/usr2/postdoc/piskulic/My-Code-Collection//Simulation_Analysis/Mean-Squared-Displacement/fortran/gen_msd_inps.py

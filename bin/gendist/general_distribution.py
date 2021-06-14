@@ -1,1 +1,1 @@
-/home/e924p726/My-Code-Collection//Simulation_Analysis/Predict_Distributions/general_distribution.py
+/usr2/postdoc/piskulic/My-Code-Collection//Simulation_Analysis/Predict_Distributions/general_distribution.py

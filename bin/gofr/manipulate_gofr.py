@@ -1,1 +1,1 @@
-/home/e924p726/My-Code-Collection//Simulation_Analysis/Pair-Distribution/manipulate_gofr.py
+/usr2/postdoc/piskulic/My-Code-Collection//Simulation_Analysis/Pair-Distribution/manipulate_gofr.py

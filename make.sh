@@ -1,6 +1,6 @@
 #!/bin/bash
 
-homepath=/home/e924p726/My-Code-Collection/
+homepath=/usr2/postdoc/piskulic/My-Code-Collection/
 
 rm -r bin/
 mkdir bin/
@@ -15,6 +15,7 @@ mkdir bin/gendist
 mkdir bin/visc
 mkdir bin/occupancy
 mkdir bin/wham
+mkdir bin/grem
 
 
 # Sets up the symlinks
@@ -48,6 +49,7 @@ ln -s $homepath/Simulation_Analysis/Predict_Distributions/general_distribution.p
 ln -s $homepath/Simulation_Analysis/Viscosity/viscosity.py bin/visc
 ln -s $homepath/Simulation_Codes/WHAM/setup_wham.py bin/wham
 ln -s $homepath/Simulation_Codes/WHAM/wham.py bin/wham
+ln -s $homepath/Simulation_Codes/gREM/get-enthalpies.py bin/grem
 
 chmod 777 bin/msd/*
 chmod 777 bin/wham_gen/*
@@ -60,3 +62,4 @@ chmod 777 bin/gendist/*
 chmod 777 bin/visc/*
 chmod 777 bin/occupancy/*
 chmod 777 bin/wham/*
+chmod 777 bin/grem/*

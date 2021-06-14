@@ -1,1 +1,1 @@
-/home/e924p726/My-Code-Collection//Simulation_Analysis/Atomic-Gyration/setup_gyro.py
+/usr2/postdoc/piskulic/My-Code-Collection//Simulation_Analysis/Atomic-Gyration/setup_gyro.py

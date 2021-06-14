@@ -1,1 +1,1 @@
-/home/e924p726/My-Code-Collection//Simulation_Codes/MD_Widom/gen_ins.py
+/usr2/postdoc/piskulic/My-Code-Collection//Simulation_Codes/MD_Widom/gen_ins.py
