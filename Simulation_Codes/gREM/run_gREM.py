@@ -21,6 +21,10 @@ parser.add_argument('-workdir', default=".", type=str, help='Working directory l
 parser.add_argument('-eta', default=-0.03, type=float, help='Eta value used in the simulations [default=-0.03]')
 parser.add_argument('-Ho', default=-30000, type=float, help='H0 value used in the simulations [default=-30000]')
 parser.add_argument('-nbins', default=20, type=int, help='Number of bins used for histogramming [default=20]')
+parser.add_argument('-walkdown', default=0, type=int, help='Runs walkdown instead of analysis [default=0 (off)]')
+parser.add_argument('-nprocs', default=4, type=int, help='(Walkdown Only) Number of processors [default=4]')
+parser.add_argument('-lmp',default="/share/pkg.7/lammps/29oct2020_intel-2019/install/bin/lmp_scc_mpi", type=str, help='(Walkdown Only) Path to LAMMPS Executable [default=/share/pkg.7/lammps/29oct2020_intel-2019/install/bin/lmp_scc_mpi]')
+parser.add_argument('-inp', default="start.gREM", type=str, help='Lammps input file name [default=start.gREM]')
 args= parser.parse_args()
 
 fstart  = args.start
@@ -29,6 +33,10 @@ workdir = args.workdir
 eta     = args.eta
 Ho      = args.Ho
 nbins   = args.nbins
+dowalkdown = args.walkdown
+nprocs  = args.nprocs
+lmp     = args.lmp
+lmpin   = args.inp
 
 class walkers:
     def __init__(self,workdir,nwalkers,start,stop,ndata,walkloc,eta,Ho):
@@ -123,89 +131,92 @@ class walkers:
         self.hist[key]=np.array(histogram).T
         self.edges[key]=np.array(edges).T
         np.savetxt("histogram_"+key+".dat", np.row_stack((center,histogram)).T)
-
-def run_stwham(hist,eta,Ho,nbins,checklimit,lambdas,minval,maxval):
-    def EffTemp(lambdavalue, eta, Ho, H):
-        # Evaluates the gREM effective temperature
-        Teff = lambdavalue + eta*(H - Ho)
-        return Teff
-    # This is a function to run ST-WHAM on histogrammed data for gREM simulations
-    pdf      = np.zeros((nbins, allwalkers.nwalkers))
-    count    = np.zeros(allwalkers.nwalkers)
-    totpdf   = np.zeros(nbins)
-    totcount = 0
-    binsize  = (maxval-minval)/float(nbins)
-    print("ST WHAM Parameters")
-    print("binsize = %10.5f" % binsize)
-    print("minval  = %10.5f" % minval)
-    print("maxval  = %10.5f" % maxval)
-    print("nbins   = %10.5f" % nbins)
-    # This part builds the pdfs from the histograms
-    for rep in range(allwalkers.nwalkers):
-        count[rep]=0
+    def run_stwham(self,key,nbins):
+        hist = self.hist[key]
+        minval, maxval = self.minval[key], self.maxval[key]
+        checklimit=0.001
+        ### This is a function that calculates STWHAM
+        def EffTemp(lambdavalue, H):
+            # Evaluates the gREM effective temperature
+            Teff = lambdavalue + self.eta*(H - self.Ho)
+            return Teff
+        # This is a function to run ST-WHAM on histogrammed data for gREM simulations
+        pdf      = np.zeros((nbins, self.nwalkers))
+        count    = np.zeros(self.nwalkers)
+        totpdf   = np.zeros(nbins)
+        totcount = 0
+        binsize  = (maxval-minval)/float(nbins)
+        print("ST WHAM Parameters")
+        print("binsize = %10.5f" % binsize)
+        print("minval  = %10.5f" % minval)
+        print("maxval  = %10.5f" % maxval)
+        print("nbins   = %10.5f" % nbins)
+        # This part builds the pdfs from the histograms
+        for rep in range(self.nwalkers):
+            count[rep]=0
+            for i in range(nbins):
+                pdf[i][rep] = hist[i][rep]  #pdf of each replica
+                count[rep] = count[rep] + pdf[i][rep] #count
+                totpdf[i] = totpdf[i]+pdf[i][rep] # adds to total pdf
+            pdf[:,rep] = pdf[:,rep]/count[rep] # Normalized replica pdf
+            totcount = totcount + count[rep] # Total number of data points
+        totpdf = totpdf/totcount # Normalized total PDF
+        
+        ### This next section calculates Ts(H) ###
+        # Make sure that numerical derivative is defined
+        TH, S         = np.zeros(nbins), np.zeros(nbins)
+        betaH , betaW = np.zeros(nbins), np.zeros(nbins)
+        hfrac = np.zeros((nbins,self.nwalkers))
+        bstart, bstop = None, None
         for i in range(nbins):
-            pdf[i][rep] = hist[i][rep]  #pdf of each replica
-            count[rep] = count[rep] + pdf[i][rep] #count
-            totpdf[i] = totpdf[i]+pdf[i][rep] # adds to total pdf
-        pdf[:,rep] = pdf[:,rep]/count[rep] # Normalized replica pdf
-        totcount = totcount + count[rep] # Total number of data points
-    totpdf = totpdf/totcount # Normalized total PDF
-    
-    ### This next section calculates Ts(H) ###
-    # Make sure that numerical derivative is defined
-    TH, S         = np.zeros(nbins), np.zeros(nbins)
-    betaH , betaW = np.zeros(nbins), np.zeros(nbins)
-    hfrac = np.zeros((nbins,allwalkers.nwalkers))
-    bstart, bstop = None, None
-    for i in range(nbins):
-        if (totpdf[i] > checklimit):
-            bstart = i + 3
-            break
-    if (bstart == None): exit("Error: Lower end of logarithm will be undefined")
-    for i in range(nbins-1, bstart, -1):
-        if (totpdf[i] > checklimit):
-            bstop = i - 3
-            break
-    if (bstop == None): exit("Error: Upper end of logarithm will be undefined")
-    # If these checks pass, we should be good to proceed.
-    # Calculate Ts(H)
-    for i in range(bstart,bstop):
-        if (totpdf[i+1] > checklimit and totpdf[i-1]>checklimit): # makes sure it is above checklimit
-            betaH[i] = np.log(totpdf[i+1]/totpdf[i-1])/(2*binsize)*consts["kb"]
-        else: # otherwise 0
-            betaH[i] = 0
-        for rep in range(allwalkers.nwalkers):
-            if (totpdf[i] > 0): #positive, not empty
-                H      = minval + (i*binsize)
-                weight = np.nan_to_num(1/EffTemp(lambdas[rep],eta,Ho,H))
-                betaW[i] = betaW[i] + ((count[rep]*pdf[i][rep])/(totcount*totpdf[i])*weight)
-        TH[i] = 1 / (betaH[i] + betaW[i])
-
-    ### This Section calculates the histogram fraction
-    with open("histfrac_STWHAM.out",'w') as fracout:
-        for rep in range(allwalkers.nwalkers):
-            for i in range(bstart,bstop):
-                hfrac[i][rep] = hist[i][rep]/(totpdf[i]*totcount) # how many counts of total
-                fracout.write("%f %f\n" % (minval + (i*binsize), hfrac[i][rep]))
-            fracout.write("\n")
-    
-    ### This Section calculates the entropy
-    def Falpha(i,j,T,binsize):
-        # This function interpolates the entropy based on Ts(H)
-        f = 0
-        for indx in range(i+1,j):
-            if (T[indx] == T[indx-1]):
-                f = f + binsize/T[indx]
-            else:
-                f = f + binsize/(T[indx]-T[indx-1])*np.log(T[indx]/T[indx-1])
-        return f
-
-    with open("TandS_STWHAM.out",'w') as tout:
+            if (totpdf[i] > checklimit):
+                bstart = i + 3
+                break
+        if (bstart == None): exit("Error: Lower end of logarithm will be undefined")
+        for i in range(nbins-1, bstart, -1):
+            if (totpdf[i] > checklimit):
+                bstop = i - 3
+                break
+        if (bstop == None): exit("Error: Upper end of logarithm will be undefined")
+        # If these checks pass, we should be good to proceed.
+        # Calculate Ts(H)
         for i in range(bstart,bstop):
-            S[i] = Falpha(bstart,i,TH,binsize)
-            tout.write("%f %f %f\n" % (minval+(i*binsize), TH[i],S[i]))
-    return
-            
+            if (totpdf[i+1] > checklimit and totpdf[i-1]>checklimit): # makes sure it is above checklimit
+                betaH[i] = np.log(totpdf[i+1]/totpdf[i-1])/(2*binsize)*consts["kb"]
+            else: # otherwise 0
+                betaH[i] = 0
+            for rep in range(self.nwalkers):
+                if (totpdf[i] > 0): #positive, not empty
+                    H      = minval + (i*binsize)
+                    weight = np.nan_to_num(1/EffTemp(self.lambdas[rep],H))
+                    betaW[i] = betaW[i] + ((count[rep]*pdf[i][rep])/(totcount*totpdf[i])*weight)
+            TH[i] = 1 / (betaH[i] + betaW[i])
+
+        ### This Section calculates the histogram fraction
+        with open("histfrac_STWHAM.out",'w') as fracout:
+            for rep in range(self.nwalkers):
+                for i in range(bstart,bstop):
+                    hfrac[i][rep] = hist[i][rep]/(totpdf[i]*totcount) # how many counts of total
+                    fracout.write("%f %f\n" % (minval + (i*binsize), hfrac[i][rep]))
+                fracout.write("\n")
+        
+        ### This Section calculates the entropy
+        def Falpha(i,j,T,binsize):
+            # This function interpolates the entropy based on Ts(H)
+            f = 0
+            for indx in range(i+1,j):
+                if (T[indx] == T[indx-1]):
+                    f = f + binsize/T[indx]
+                else:
+                    f = f + binsize/(T[indx]-T[indx-1])*np.log(T[indx]/T[indx-1])
+            return f
+
+        with open("TandS_STWHAM.out",'w') as tout:
+            for i in range(bstart,bstop):
+                S[i] = Falpha(bstart,i,TH,binsize)
+                tout.write("%f %f %f\n" % (minval+(i*binsize), TH[i],S[i]))
+        return
+                
 
 
 def read_lammps_log(logbase,runindex,ndata):
@@ -252,19 +263,63 @@ def read_lambdas(lammpsfile):
             if "variable lambda world" in line:
                 vals = np.array(line.strip().split()[3:],dtype='float')
     np.savetxt("lambdas.dat", np.c_[vals])
-    return
-if __name__ == "__main__":
-    # read in the walker data (which window it is in)
-    walkloc=read_walker(workdir+"/log/log.lammps",fstart,fend)[:,1:]
-    # read input file
-    read_lambdas(workdir+"/start.gREM")
-    nreps=walkloc.shape[1]
-    nruns = fend-fstart
-    ndata = np.shape(walkloc)[0]/nruns
-    print("There are %d replicas in the present simulation, with %d runs" % (nreps,nruns))
-    allwalkers=walkers(workdir,nreps,fstart,fend,ndata,walkloc,eta,Ho)
-    allwalkers.post_process(nbins)
-    tol=0.001
-    run_stwham(allwalkers.hist["PotEng"],eta,Ho,nbins,tol,allwalkers.lambdas,allwalkers.minval["PotEng"], allwalkers.maxval["PotEng"])
+    return vals
 
+def gen_walkdown(lambdas):
+    f = open("walkdown.sh",'w')
+    f.write("#!/bin/bash\n")
+    f.write("#\n")
+    f.write("#$ -l h_rt=11:45:00\n")
+    f.write("#$ -j y\n")
+    f.write("#$ -N wdown\n")
+    f.write("#$ -pe mpi_%d_tasks_per_node %d\n"% (nprocs,nprocs))
+    f.write("#$ -V\n")
+    f.write("\n")
+    f.write("module load openmpi/3.1.4_intel-2019\n")
+    f.write("module load lammps/29Oct2020\n")
+    f.write("module load codecol/grem\n")
+
+    f.write("NSLOTS=%d\n" % nprocs)
+
+    f.write("run_gREM.py -nprocs %d -lmp %s -inp %s -walkdown 2 -workdir %s\n" % (nprocs, lmp, lmpin,workdir))
+    f.write("exit 0\n")
+    f.close()
+    print("walkdown.sh created in present directory")
+    print("to continue: type qsub walkdown.sh")
+
+
+def walkdown(lambdas):
+    import os
+    nreps=len(lambdas)
+    print("There are %d replicas" % nreps)
+    H = np.zeros(nreps)
+    av_H = np.zeros(nreps)
+    for rep in range(nreps):
+        print("walking replica %d" % rep)
+        os.chdir(workdir+"/%s" % rep)
+        os.system("mpirun -np %d " % (nproc/2) + lmp + " -sf omp -pk omp 2 -in ../" + inp + " -var lambda %g -var eta %g -var H0 %g > output" % (lambdas[rep], eta, H))
+        os.system("mv final_restart_file final_restart_file0")
+        os.system("cp final_restart_file0 restart_file")
+        os.system("cp final_restart_file0 ../%s/restart_file" % (rep+1))
+
+
+
+
+if __name__ == "__main__":
+    lambdas=read_lambdas(workdir+"/"+lmpin)
+    if dowalkdown == 1:
+        gen_walkdown(lambdas)
+    elif dowalkdown == 2:
+        walkdown(lambdas)
+    else:
+        # read in the walker data (which window it is in)
+        walkloc=read_walker(workdir+"/log/log.lammps",fstart,fend)[:,1:]
+        # read input file
+        nreps=walkloc.shape[1]
+        nruns = fend-fstart
+        ndata = np.shape(walkloc)[0]/nruns
+        print("There are %d replicas in the present simulation, with %d runs" % (nreps,nruns))
+        allwalkers=walkers(workdir,nreps,fstart,fend,ndata,walkloc,eta,Ho)
+        allwalkers.post_process(nbins)
+        allwalkers.run_stwham("PotEng",20) 
 
