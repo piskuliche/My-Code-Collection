@@ -10,11 +10,13 @@
 
 import numpy as np
 import argparse
+import os
 
 consts={"kb":0.0019872041} # kcal/mol
 
 # Read Arguments
 parser = argparse.ArgumentParser()
+parser.add_argument('-setup', default=0, type=int, help='Should it set up variables [default=0 (off)]')
 parser.add_argument('-start', default=0,type=int, help='Starting index for calculating [default=0]')
 parser.add_argument('-stop', default=5, type=int, help='Ending index for calculating [default=5]')
 parser.add_argument('-workdir', default=".", type=str, help='Working directory location [default=./]')
@@ -25,8 +27,10 @@ parser.add_argument('-walkdown', default=0, type=int, help='Runs walkdown instea
 parser.add_argument('-nprocs', default=4, type=int, help='(Walkdown Only) Number of processors [default=4]')
 parser.add_argument('-lmp',default="/share/pkg.7/lammps/29oct2020_intel-2019/install/bin/lmp_scc_mpi", type=str, help='(Walkdown Only) Path to LAMMPS Executable [default=/share/pkg.7/lammps/29oct2020_intel-2019/install/bin/lmp_scc_mpi]')
 parser.add_argument('-inp', default="start.gREM", type=str, help='Lammps input file name [default=start.gREM]')
+parser.add_argument('-lambdafile', default="grem.include", type=str, help='location of lambda information [default=grem.include]')
 args= parser.parse_args()
 
+setup   = args.setup
 fstart  = args.start
 fend    = args.stop
 workdir = args.workdir
@@ -37,6 +41,35 @@ dowalkdown = args.walkdown
 nprocs  = args.nprocs
 lmp     = args.lmp
 lmpin   = args.inp
+lambdafile = args.lambdafile
+
+if setup == 1:
+    print("To Setup run, use start to choose lowest lambda, stop to choose highest, and nbins to choose number of windows")
+    lambdas=np.linspace(fstart,fend,nbins)
+    reps=np.linspace(0,nbins-1,nbins)
+    f=open(workdir+"/grem.include",'w')
+    f.write("variable lambda world ")
+    for i in range(nbins):
+        f.write("%d " %lambdas[i])
+    f.write("\n")
+    f.write("variable walker world ")
+    # Makes subdirs
+    for i in range(nbins):
+        f.write("%d " % reps[i])
+        try:
+            os.makedirs(str(i))
+        except:
+            continue
+    f.write("\n")
+    f.close()
+    f=open(workdir+"/last",'w')
+    f.write("0\n")
+    f.close()
+    try:
+        os.mkdir(workdir+"/log")
+    except:
+        print("log folder exists")
+    exit("Setup complete")
 
 class walkers:
     def __init__(self,workdir,nwalkers,start,stop,ndata,walkloc,eta,Ho):
@@ -70,16 +103,16 @@ class walkers:
     def walk_data(self):
         # Read the keys and first vals
         self.nruns=self.stop-self.start
-        self.keys, firstvals = read_lammps_log(self.workdir+"/"+str(0)+self.logbase, self.start+1,self.ndata)
+        self.keys, firstvals = read_lammps_log(self.workdir+"/"+str(0)+self.logbase, self.start,self.ndata)
         perwindow=len(firstvals[self.keys[0]])
         for key in self.keys:
             self.walkdata[key]=np.zeros((self.nwalkers,self.nruns*perwindow))
             self.repdata[key]=np.zeros((self.nwalkers,self.nruns*perwindow))
         for w in range(self.nwalkers):
-            for r in range(self.nruns):
-                rstart, rstop = r*perwindow, (r+1)*perwindow
+            for r in range(self.start,self.stop):
+                rstart, rstop = (r-self.start)*perwindow, (r-self.start+1)*perwindow
                 # read in the run
-                _, values = read_lammps_log(self.workdir+"/"+str(w)+self.logbase, r+1,self.ndata)
+                _, values = read_lammps_log(self.workdir+"/"+str(w)+self.logbase, r,self.ndata)
                 for key in self.keys:
                     # copy into array
                     if key == "Step":
@@ -116,9 +149,10 @@ class walkers:
         self.Teff=np.zeros(self.nwalkers)
         self.Havg=np.zeros(self.nwalkers)
         for r in range(self.nwalkers):
-            self.Havg[r]=np.average(self.repdata["Enthalpy"][r])
+            self.Havg[r]=np.average(self.repdata["PotEng"][r])
             print("For walker %d the average Enthalpy is %10.5f kcal/mol" % (r,self.Havg[r]))
             self.Teff[r] = self.lambdas[r] + self.eta*(self.Havg[r]-self.Ho)
+        print(np.shape(self.Havg), np.shape(self.Teff), np.shape(self.lambdas))
         np.savetxt("Teff.dat",np.c_[self.Havg,self.Teff, self.lambdas])
     def hist_data(self,key,nbins):
         self.minval[key],self.maxval[key] = np.min(self.repdata[key]),np.max(self.repdata[key])
@@ -257,6 +291,7 @@ def read_walker(walklog,start,stop):
 
 def read_lambdas(lammpsfile):
     vals=[]
+
     with open(lammpsfile,'r') as f:
         lines=f.readlines()
         for line in lines:
@@ -292,21 +327,22 @@ def walkdown(lambdas):
     import os
     nreps=len(lambdas)
     print("There are %d replicas" % nreps)
-    H = np.zeros(nreps)
-    av_H = np.zeros(nreps)
+    os.chdir(workdir)
     for rep in range(nreps):
         print("walking replica %d" % rep)
-        os.chdir(workdir+"/%s" % rep)
-        os.system("mpirun -np %d " % (nproc/2) + lmp + " -sf omp -pk omp 2 -in ../" + inp + " -var lambda %g -var eta %g -var H0 %g > output" % (lambdas[rep], eta, H))
+        os.chdir("./%s" % rep)
+        os.system("mpirun -np %d " % (nprocs/2) + lmp + " -sf omp -pk omp 2 -in " + "../" + lmpin + " -var lambda %g -var eta %g -var H0 %g > output" % (lambdas[rep], eta, Ho))
         os.system("mv final_restart_file final_restart_file0")
         os.system("cp final_restart_file0 restart_file")
         os.system("cp final_restart_file0 ../%s/restart_file" % (rep+1))
+        os.chdir("../") # returns to original folder
 
 
 
 
 if __name__ == "__main__":
-    lambdas=read_lambdas(workdir+"/"+lmpin)
+    lambdas=read_lambdas(workdir+"/"+lambdafile)
+    print(len(lambdas))
     if dowalkdown == 1:
         gen_walkdown(lambdas)
     elif dowalkdown == 2:
@@ -314,6 +350,8 @@ if __name__ == "__main__":
     else:
         # read in the walker data (which window it is in)
         walkloc=read_walker(workdir+"/log/log.lammps",fstart,fend)[:,1:]
+        print(np.shape(walkloc))
+        print(walkloc[0])
         # read input file
         nreps=walkloc.shape[1]
         nruns = fend-fstart
@@ -321,5 +359,5 @@ if __name__ == "__main__":
         print("There are %d replicas in the present simulation, with %d runs" % (nreps,nruns))
         allwalkers=walkers(workdir,nreps,fstart,fend,ndata,walkloc,eta,Ho)
         allwalkers.post_process(nbins)
-        allwalkers.run_stwham("PotEng",20) 
+        allwalkers.run_stwham("PotEng",nbins) 
 
