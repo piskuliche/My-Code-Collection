@@ -10,7 +10,7 @@
 
 import numpy as np
 import argparse
-import os
+import os,pickle
 
 consts={"kb":0.0019872041} # kcal/mol
 
@@ -25,9 +25,10 @@ parser.add_argument('-Ho', default=-30000, type=float, help='H0 value used in th
 parser.add_argument('-nbins', default=20, type=int, help='Number of bins used for histogramming [default=20]')
 parser.add_argument('-walkdown', default=0, type=int, help='Runs walkdown instead of analysis [default=0 (off)]')
 parser.add_argument('-nprocs', default=4, type=int, help='(Walkdown Only) Number of processors [default=4]')
-parser.add_argument('-lmp',default="/share/pkg.7/lammps/29oct2020_intel-2019/install/bin/lmp_scc_mpi", type=str, help='(Walkdown Only) Path to LAMMPS Executable [default=/share/pkg.7/lammps/29oct2020_intel-2019/install/bin/lmp_scc_mpi]')
+parser.add_argument('-lmp',default="/share/pkg.7/lammps/3Mar2020/install/bin/lmp_mpi", type=str, help='(Walkdown Only) Path to LAMMPS Executable [default=/share/pkg.7/lammps/3Mar2020/install/bin/lmp_mpi]')
 parser.add_argument('-inp', default="start.gREM", type=str, help='Lammps input file name [default=start.gREM]')
 parser.add_argument('-lambdafile', default="grem.include", type=str, help='location of lambda information [default=grem.include]')
+parser.add_argument('-restart', default=0, type=int, help='Should it read a restart file instead of going through reading files? [default=0]')
 args= parser.parse_args()
 
 setup   = args.setup
@@ -42,6 +43,14 @@ nprocs  = args.nprocs
 lmp     = args.lmp
 lmpin   = args.inp
 lambdafile = args.lambdafile
+shouldrestart=args.restart
+
+if shouldrestart == 0:
+    print("Restart file will be generated!")
+elif shouldrestart == 1:
+    print("Reading restart file!")
+else:
+    exit("Invalid option for restart, please select 0 or 1")
 
 if setup == 1:
     print("To Setup run, use start to choose lowest lambda, stop to choose highest, and nbins to choose number of windows")
@@ -72,11 +81,13 @@ if setup == 1:
     exit("Setup complete")
 
 class walkers:
-    def __init__(self,workdir,nwalkers,start,stop,ndata,walkloc,eta,Ho):
+    def __init__(self,workdir,start,stop,walkloc,eta,Ho):
         self.walkdata,self.repdata={},{}
-        self.nwalkers, self.ndata=nwalkers, ndata
         self.start,self.stop=start,stop
         self.walkloc=walkloc
+        self.nwalkers=np.shape(self.walkloc)[1]
+        self.nruns=self.stop-self.start
+        self.ndata=np.shape(self.walkloc)[0]/self.nruns
         self.logbase="/log.lammps.w-"
         self.workdir=workdir
         self.hist,self.edges={},{}
@@ -310,13 +321,11 @@ def gen_walkdown(lambdas):
     f.write("#$ -pe mpi_%d_tasks_per_node %d\n"% (nprocs,nprocs))
     f.write("#$ -V\n")
     f.write("\n")
-    f.write("module load openmpi/3.1.4_intel-2019\n")
-    f.write("module load lammps/29Oct2020\n")
-    f.write("module load codecol/grem\n")
+    f.write("module load gcc/8.3.0 \nmodule load openmpi/3.1.4_gnu-8.1 \nmodule load fftw/3.3.8\nmodule load lammps/3Mar2020\n")
 
     f.write("NSLOTS=%d\n" % nprocs)
 
-    f.write("run_gREM.py -nprocs %d -lmp %s -inp %s -walkdown 2 -workdir %s\n" % (nprocs, lmp, lmpin,workdir))
+    f.write("run_gREM.py -nprocs %d -lmp %s -inp %s -walkdown 2 -workdir %s -eta %s -Ho %s\n" % (nprocs, lmp, lmpin,workdir,eta,Ho))
     f.write("exit 0\n")
     f.close()
     print("walkdown.sh created in present directory")
@@ -338,8 +347,6 @@ def walkdown(lambdas):
         os.chdir("../") # returns to original folder
 
 
-
-
 if __name__ == "__main__":
     lambdas=read_lambdas(workdir+"/"+lambdafile)
     print(len(lambdas))
@@ -347,17 +354,14 @@ if __name__ == "__main__":
         gen_walkdown(lambdas)
     elif dowalkdown == 2:
         walkdown(lambdas)
-    else:
+    elif dowalkdown == 0 and shouldrestart == 0:
         # read in the walker data (which window it is in)
         walkloc=read_walker(workdir+"/log/log.lammps",fstart,fend)[:,1:]
-        print(np.shape(walkloc))
-        print(walkloc[0])
         # read input file
-        nreps=walkloc.shape[1]
-        nruns = fend-fstart
-        ndata = np.shape(walkloc)[0]/nruns
-        print("There are %d replicas in the present simulation, with %d runs" % (nreps,nruns))
-        allwalkers=walkers(workdir,nreps,fstart,fend,ndata,walkloc,eta,Ho)
+        allwalkers=walkers(workdir,fstart,fend,walkloc,eta,Ho)
+        pickle.dump(allwalkers,open(workdir+'/allwalkers.pckl','wb'))
+    elif dowalkdown == 0 and shouldrestart == 1:
+        allwalkers=pickle.load(open(workdir+'/allwalkers.pckl','rb'))
         allwalkers.post_process(nbins)
         allwalkers.run_stwham("PotEng",nbins) 
 
