@@ -60,15 +60,17 @@ else:
 
 if setup == 1: # This does setup for the simulation, generates folders, etc
     print("To Setup run, use start to choose lowest lambda, stop to choose highest, and nbins to choose number of windows")
+    # Evenly choose lambdas and bins
     lambdas=np.linspace(fstart,fend,nbins)
     reps=np.linspace(0,nbins-1,nbins)
+    # write lammps variables to a file
     f=open(workdir+"/grem.include",'w')
     f.write("variable lambda world ")
     for i in range(nbins):
         f.write("%d " %lambdas[i])
     f.write("\n")
     f.write("variable walker world ")
-    # Makes subdirs
+    # Makes subdirs and write reps to lammps var file
     for i in range(nbins):
         f.write("%d " % reps[i])
         try:
@@ -84,6 +86,7 @@ if setup == 1: # This does setup for the simulation, generates folders, etc
         os.mkdir(workdir+"/log")
     except:
         print("log folder exists")
+    # Setup step has finished, exits.
     exit("Setup complete")
 
                 
@@ -147,6 +150,8 @@ def read_lambdas(lammpsfile):
 def gen_walkdown(lambdas):
     """
     This function generates a submit script for the SCC that runs the walkdown when you submit it.
+
+    Note that this might need to be modified based off of cluster environment.
     """
     f = open("walkdown.sh",'w')
     f.write("#!/bin/bash\n")
@@ -157,7 +162,7 @@ def gen_walkdown(lambdas):
     f.write("#$ -pe mpi_%d_tasks_per_node %d\n"% (nprocs,nprocs))
     f.write("#$ -V\n")
     f.write("\n")
-    f.write("module load gcc/8.3.0 \nmodule load openmpi/3.1.4_gnu-8.1 \nmodule load fftw/3.3.8\nmodule load lammps/3Mar2020\n module load codecol/grem")
+    f.write("module load gcc/8.3.0 \nmodule load openmpi/3.1.4_gnu-8.1 \nmodule load fftw/3.3.8\nmodule load lammps/3Mar2020\nmodule load codecol/grem\n")
 
     f.write("NSLOTS=%d\n" % nprocs)
 
