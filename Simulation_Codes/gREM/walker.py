@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import numpy as np
+from scipy import stats
 
 def read_lammps_log(logbase,runindex,ndata):
     """
@@ -11,12 +12,19 @@ def read_lammps_log(logbase,runindex,ndata):
     with open(logbase+str(runindex),'r') as lg:
         lines=lg.readlines()
         flag=0
+        lprev=None
         for line in lines:
             if "Loop" in line: # Stops reading the file
                 flag=0
                 break
             if "WARNING" in line:
+                print("*********************")
                 print("Note: There was a warning found")
+                print("warning location: %s" % (logbase+str(runindex)))
+                print("%s" % line.strip())
+                if lprev is not None:
+                    print("%s" % lprev.strip())
+                print("*********************")
             if flag==1 and "WARNING" not in line: # reads values
                 vals=line.strip().split()
                 c=0
@@ -28,6 +36,7 @@ def read_lammps_log(logbase,runindex,ndata):
                 keys=line.strip().split()
                 for key in keys:
                     logdata[key]=[]
+            lprev = line
     for key in keys:
         logdata[key]=np.array(logdata[key][:-1])
         if ndata != len(logdata[key]):
@@ -54,17 +63,18 @@ class walkers:
         print("start, stop = %d, %d" % (self.start, self.stop))
         print("eta, Ho = %10.5f, %10.5f" %(self.eta, self.Ho))
         print("nwalkers, ndata = %d, %d" %(self.nwalkers, self.ndata))
+
         print("Walker class initiated based on following log format %s" % self.logbase)
         print("Pulling data")
         self.walk_data()
         self.get_replicadata()
         self.write()
         print("Data written.")
-    def post_process(self,nbins):
+    def post_process(self,nbins,nblocks):
         print("Beginning Post Processing")
         self.calc_Teff()
         for key in self.keys:
-            self.hist_data(key,nbins)
+            self.hist_data(key,nbins,nblocks)
         print("Post Processing Completed")
     def walk_data(self):
         # Read the keys and first vals
@@ -121,7 +131,17 @@ class walkers:
             self.Teff[r] = self.lambdas[r] + self.eta*(self.Havg[r]-self.Ho)
         print(np.shape(self.Havg), np.shape(self.Teff), np.shape(self.lambdas))
         np.savetxt("Teff.dat",np.c_[self.Havg,self.Teff, self.lambdas])
-    def hist_data(self,key,nbins):
+    def hist_data(self,key,nbins,nblocks):
+        try:
+            self.bl_hist
+        except:
+            self.bl_hist={}
+        # set up blocking
+        length = len(self.repdata[key][0])
+        nperblock = length/nblocks
+        print("nper", nperblock,length)
+        nperblock=int(nperblock)
+        t_value = stats.t.ppf(0.975,nblocks-1)/np.sqrt(nblocks)
         self.minval[key],self.maxval[key] = np.min(self.repdata[key]),np.max(self.repdata[key])
         histogram,center,edges=[],[],[]
         for r in range(self.nwalkers):
@@ -131,105 +151,13 @@ class walkers:
             edges.append(bins)
         self.hist[key]=np.array(histogram).T
         self.edges[key]=np.array(edges).T
-        np.savetxt("histogram_"+key+".dat", np.row_stack((center,histogram)).T)
-    def run_stwham(self,key,nbins):
-        """
-        This is a variant of ST-WHAM (based on David Stelter's code) that calculates
-        the effective temperature and combines the values
-        """
-        kb=0.0019872041
-        hist = self.hist[key]
-        minval, maxval = self.minval[key], self.maxval[key]
-        checklimit=0.001
-        ### This is a function that calculates STWHAM
-        def EffTemp(lambdavalue, H):
-            # Evaluates the gREM effective temperature
-            Teff = lambdavalue + self.eta*(H - self.Ho)
-            return Teff
-
-        # Write out the lambdas
-        h = np.linspace(minval,maxval,num=200)
-        out=[h]
-        for i in self.lambdas:
-            tval = EffTemp(i,h)
-            out.append(tval)
-        out = np.array(out)
-        np.savetxt("lambda_funcs.dat",out.T)
-                
-        # This is a function to run ST-WHAM on histogrammed data for gREM simulations
-        pdf      = np.zeros((nbins, self.nwalkers))
-        count    = np.zeros(self.nwalkers)
-        totpdf   = np.zeros(nbins)
-        totcount = 0
-        binsize  = (maxval-minval)/float(nbins)
-        print("ST WHAM Parameters")
-        print("binsize = %10.5f" % binsize)
-        print("minval  = %10.5f" % minval)
-        print("maxval  = %10.5f" % maxval)
-        print("nbins   = %10.5f" % nbins)
-        # This part builds the pdfs from the histograms
-        for rep in range(self.nwalkers):
-            count[rep]=0
-            for i in range(nbins):
-                pdf[i][rep] = hist[i][rep]  #pdf of each replica
-                count[rep] = count[rep] + pdf[i][rep] #count
-                totpdf[i] = totpdf[i]+pdf[i][rep] # adds to total pdf
-            pdf[:,rep] = pdf[:,rep]/count[rep] # Normalized replica pdf
-            totcount = totcount + count[rep] # Total number of data points
-        totpdf = totpdf/totcount # Normalized total PDF
-        
-        ### This next section calculates Ts(H) ###
-        # Make sure that numerical derivative is defined
-        TH, S         = np.zeros(nbins), np.zeros(nbins)
-        betaH , betaW = np.zeros(nbins), np.zeros(nbins)
-        hfrac = np.zeros((nbins,self.nwalkers))
-        bstart, bstop = None, None
-        for i in range(nbins):
-            if (totpdf[i] > checklimit):
-                bstart = i + 3
-                break
-        if (bstart == None): exit("Error: Lower end of logarithm will be undefined")
-        for i in range(nbins-1, bstart, -1):
-            if (totpdf[i] > checklimit):
-                bstop = i - 3
-                break
-        if (bstop == None): exit("Error: Upper end of logarithm will be undefined")
-        # If these checks pass, we should be good to proceed.
-        # Calculate Ts(H)
-        for i in range(bstart,bstop):
-            if (totpdf[i+1] > checklimit and totpdf[i-1]>checklimit): # makes sure it is above checklimit
-                betaH[i] = np.log(totpdf[i+1]/totpdf[i-1])/(2*binsize)*kb
-            else: # otherwise 0
-                betaH[i] = 0
-            for rep in range(self.nwalkers):
-                if (totpdf[i] > 0): #positive, not empty
-                    H      = minval + (i*binsize)
-                    weight = np.nan_to_num(1/EffTemp(self.lambdas[rep],H))
-                    betaW[i] = betaW[i] + ((count[rep]*pdf[i][rep])/(totcount*totpdf[i])*weight)
-            TH[i] = 1 / (betaH[i] + betaW[i])
-
-        ### This Section calculates the histogram fraction
-        with open("histfrac_STWHAM.out",'w') as fracout:
-            for rep in range(self.nwalkers):
-                for i in range(bstart,bstop):
-                    hfrac[i][rep] = hist[i][rep]/(totpdf[i]*totcount) # how many counts of total
-                    fracout.write("%f %f\n" % (minval + (i*binsize), hfrac[i][rep]))
-                fracout.write("\n")
-        
-        ### This Section calculates the entropy
-        def Falpha(i,j,T,binsize):
-            # This function interpolates the entropy based on Ts(H)
-            f = 0
-            for indx in range(i+1,j):
-                if (T[indx] == T[indx-1]):
-                    f = f + binsize/T[indx]
-                else:
-                    f = f + binsize/(T[indx]-T[indx-1])*np.log(T[indx]/T[indx-1])
-            return f
-
-        with open("TandS_STWHAM.out",'w') as tout:
-            for i in range(bstart,bstop):
-                S[i] = Falpha(bstart,i,TH,binsize)
-                tout.write("%f %f %f\n" % (minval+(i*binsize), TH[i],S[i]))
-        return
-                
+        self.bl_hist[key] = []
+        for blk in range(nblocks):
+            bl_start, bl_end = blk*nperblock, (blk+1)*nperblock
+            bl_tmp = []
+            for r in range(self.nwalkers):
+                tmp,bins = np.histogram(self.repdata[key][r][bl_start:bl_end],bins=nbins, range=(self.minval[key],self.maxval[key]))
+                bl_tmp.append(tmp)
+            self.bl_hist[key].append(np.array(bl_tmp).T)
+        bl_err = np.std(self.bl_hist[key],axis=0)*t_value
+        np.savetxt("histogram_"+key+".dat", np.row_stack((center,histogram,bl_err.T)).T)

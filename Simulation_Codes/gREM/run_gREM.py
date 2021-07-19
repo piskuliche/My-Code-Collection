@@ -10,8 +10,10 @@
 
 import numpy as np
 import argparse
-import os,pickle
+import os,pickle,sys
 from walker import walkers
+from stwham import run_stwham
+from scipy import stats
 from sortdumps import frame, get_frames,find_leaflet
 
 consts={"kb":0.0019872041} # kcal/mol
@@ -25,6 +27,7 @@ parser.add_argument('-workdir', default=".", type=str, help='Working directory l
 parser.add_argument('-eta', default=-0.03, type=float, help='Eta value used in the simulations [default=-0.03]')
 parser.add_argument('-Ho', default=-30000, type=float, help='H0 value used in the simulations [default=-30000]')
 parser.add_argument('-nbins', default=20, type=int, help='Number of bins used for histogramming [default=20]')
+parser.add_argument('-nb', default=5, type=int, help='Number of blocks used for block averaging [default=5]')
 parser.add_argument('-walkdown', default=0, type=int, help='Runs walkdown instead of analysis [default=0 (off)]')
 parser.add_argument('-nprocs', default=4, type=int, help='(Walkdown Only) Number of processors [default=4]')
 parser.add_argument('-lmp',default="/share/pkg.7/lammps/3Mar2020/install/bin/lmp_mpi", type=str, help='(Walkdown Only) Path to LAMMPS Executable [default=/share/pkg.7/lammps/3Mar2020/install/bin/lmp_mpi]')
@@ -50,6 +53,8 @@ lambdafile = args.lambdafile
 shouldrestart=args.restart
 dumpbase = args.dumpbase
 safeleaf = args.safe
+nblocks  = args.nb
+t_value = stats.t.ppf(0.975,nblocks-1)/np.sqrt(nblocks)
 
 if shouldrestart == 0:
     print("Restart file will be generated!")
@@ -89,41 +94,27 @@ if setup == 1: # This does setup for the simulation, generates folders, etc
     # Setup step has finished, exits.
     exit("Setup complete")
 
-                
+
+class Logger(object):
+    # Note - this class is for writing code output to both screen and a logfile (in case you want to get fancy)
+    # Note - this code was taken from 
+    # https://stackoverflow.com/questions/14906764/how-to-redirect-stdout-to-both-file-and-console-with-scripting
+    def __init__(self):
+        self.terminal = sys.stdout
+        self.log = open("grem-logfile.log", "a")
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)  
+
+    def flush(self):
+        #this flush method is needed for python 3 compatibility.
+        #this handles the flush command by doing nothing.
+        #you might want to specify some extra behavior here.
+        pass    
 
 
-def read_lammps_log(logbase,runindex,ndata):
-    """
-    # This reads a lammps log file and extracts the data from it
-    # it saves each of the keys that are written in the "Step ..." line
-    # and saves the info as keys and a data array
-    """
-    keys,logdata=[],{}
-    with open(logbase+str(runindex),'r') as lg:
-        lines=lg.readlines()
-        flag=0
-        for line in lines:
-            if "Loop" in line: # Stops reading the file
-                flag=0
-                break
-            if flag==1 and "WARNING" not in line: # reads values
-                vals=line.strip().split()
-                c=0
-                for key in keys:
-                    logdata[key].append(float(vals[c]))
-                    c+=1
-            if "Step" in line and flag==0: # begins read, reads keys
-                flag=1
-                keys=line.strip().split()
-                for key in keys:
-                    logdata[key]=[]
-    for key in keys:
-        logdata[key]=np.array(logdata[key][:-1])
-        if ndata != len(logdata[key]):
-            rat=int(len(logdata[key])/ndata)
-            logdata[key]=logdata[key][::rat]
-    return keys,logdata
-
+       
 def read_walker(walklog,start,stop):
     """
     Reads data from the walker log file, saving the data in a numpy array
@@ -192,8 +183,39 @@ def walkdown(lambdas):
         os.system("cp final_restart_file0 ../%s/restart_file" % (rep+1))
         os.chdir("../") # returns to original folder
 
+def calculate_acceptance(walkloc):
+    # This calculates how many exchanges are accepted for each replica.
+    print(np.shape(walkloc))
+    nswp = np.shape(walkloc)[0]-1
+    nrep = np.shape(walkloc)[1]
+    c=0
+    told=[]
+    total=[]
+    vals={}
+    for t in walkloc:
+        if c == 0:
+            told=t
+            for i in told:
+                vals[i]=0
+            c=c+1
+        else:
+            msk=(t!=told)*1
+            b=0
+            for i in t:
+                vals[i]=vals[i]+msk[b]
+                b=b+1
+            h=np.sum(msk)
+            total.append(h/nrep)
+            told=t
+            c = c + 1
+    total = np.sum(total)/nswp
+    for i in vals:
+        print(i, vals[i]/nswp)
+    print("total",total)
+
 
 if __name__ == "__main__":
+    sys.stdout = Logger()
     lambdas=read_lambdas(workdir+"/"+lambdafile)
     if dowalkdown == 1:
         gen_walkdown(lambdas)
@@ -202,11 +224,30 @@ if __name__ == "__main__":
     elif dowalkdown == 0 and shouldrestart == 0:
         # read in the walker data (which window it is in)
         walkloc=read_walker(workdir+"/log/log.lammps",fstart,fend)[:,1:]
+        calculate_acceptance(walkloc)
         # read input file
         allwalkers=walkers(workdir,fstart,fend,walkloc,eta,Ho)
         pickle.dump(allwalkers,open(workdir+'/allwalkers.pckl','wb'))
         if dumpbase != "None": get_frames(workdir, dumpbase, fstart, fend, len(lambdas), walkloc)
     elif dowalkdown == 0 and shouldrestart == 1:
         allwalkers=pickle.load(open(workdir+'/allwalkers.pckl','rb'),encoding='latin1')
-        allwalkers.post_process(nbins)
-        allwalkers.run_stwham("PotEng",nbins)
+        allwalkers.post_process(nbins,nblocks)
+        # Block Averaging
+        bl_T, bl_S =[], []
+        for blk in range(nblocks):
+            T_tmp, S_tmp, _, _, _= run_stwham(allwalkers.bl_hist["PotEng"][blk],allwalkers.minval["PotEng"],allwalkers.maxval["PotEng"],allwalkers.lambdas,allwalkers.eta,allwalkers.Ho,blk)
+            bl_T.append(T_tmp)
+            bl_S.append(S_tmp)
+        T_err = np.std(bl_T,axis=0)*t_value
+        S_err = np.std(bl_S,axis=0)*t_value
+        Th, Sh, bs, be, binsize = run_stwham(allwalkers.hist["PotEng"],allwalkers.minval["PotEng"],allwalkers.maxval["PotEng"],allwalkers.lambdas,allwalkers.eta,allwalkers.Ho,-1)
+        for blk in range(nblocks):
+            with open("TandS_bl_"+str(blk)+".out",'w') as bout:
+                for i in range(bs,be):
+                    bout.write("%f %f %f \n" % (allwalkers.minval["PotEng"]+(i*binsize),bl_T[blk][i],bl_S[blk][i]))
+        with open("TandS_STWHAM.out",'w') as tout:
+            for i in range(bs,be):
+                for blk in range(nblocks):
+                    if bl_T[blk][i]==0:
+                        T_err[i],S_err[i]=0,0
+                tout.write("%f %f %f %f %f\n" % (allwalkers.minval["PotEng"]+(i*binsize), Th[i], T_err[i],Sh[i],S_err[i]))

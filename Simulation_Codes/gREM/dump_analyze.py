@@ -57,6 +57,8 @@ if __name__ == "__main__":
         for fr in range(len(frames)):
             frames[fr].calc_thick([3,4])
             frames[fr].calc_area()
+            frames[fr].calc_p2([3,4],[6,10])
         calc_stats(frames,"thickness")
         calc_stats(frames, "area")
+        calc_stats(frames, "c2")
 

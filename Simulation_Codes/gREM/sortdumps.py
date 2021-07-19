@@ -110,6 +110,10 @@ class frame:
             self.calc_data={}
         self.calc_data[key]=value
         return
+    def add_mass(self,M):
+        #Adds mass to be assumed for all atoms
+        self.M = M
+        return
     def calc_area(self):
         # Calculates bilayer area
         self.add_data("area",np.abs(self.L[0]*self.L[1]))
@@ -118,6 +122,10 @@ class frame:
         # Calculates bilayer thickness
         A,B=[],[]
         # sort distances by leaflet A and B
+        try:
+            self.M
+        except:
+            self.add_mass(72)
         for atom in self.data["id"]:
             if self.data["type"][atom-1] in hatoms:
                 if self.data["leaf"][atom-1]=="A":
@@ -125,17 +133,74 @@ class frame:
                 elif self.data["leaf"][atom-1]=="B":
                     B.append(72*self.data["z"][atom-1])
         # Calc z component of COM for both leaflets
-        AcomZ = np.sum(A)/(len(A)*72)
-        BcomZ = np.sum(B)/(len(B)*72)
+        AcomZ = np.sum(A)/(len(A)*self.M)
+        BcomZ = np.sum(B)/(len(B)*self.M)
         dcomZ = AcomZ - BcomZ
         # Apply PBC
         dcomZ = dcomZ - self.L[2]*np.round(dcomZ/self.L[2])
         self.add_data("thickness",np.abs(dcomZ))
         return
+    def calc_p2(self,hatoms,tatoms):
+        try:
+            self.M
+        except:
+            self.add_mass(72)
+        def COM(self,atoms):
+            comx,comy,comz=0,0,0
+            denom = 0
+            for atom in atoms:
+                comx = comx + self.data["x"][atom]*self.M
+                comy = comy + self.data["y"][atom]*self.M
+                comz = comz + self.data["z"][atom]*self.M
+                denom = denom + self.M
+            rcom = np.array([comx/denom, comy/denom, comz/denom])
+            return rcom
+        def unitvec(r,x,y,z):
+            drx = r[0]-x
+            dry = r[1]-y
+            drz = r[2]-z
+            print(drx,dry,drz)
+            dr = np.sqrt(drx**2. + dry**2. + drz**2)
+            return np.array([drx/dr, dry/dr, drz/dr])
+        def c2(vec):
+            z = np.zeros(3)
+            z[2]=1
+            costhta = np.dot(vec,z)
+            return 0.5*(3*costhta**2. - 1)
 
-
-
-
+        # This calculates P2=0.5*(3 cos^2 theta -1)
+        # where theta = angle between bilayer normal (z axis) and the vector pointing from 
+        # second c2 bead to the FIRST headgroup atom
+        
+        # Calculate atoms per mol and num lipids
+        apermol = np.sum((self.data["mol"]==1)*1)
+        nlipids = int(self.N/apermol)
+        
+        header,tail = {},{}
+        # Initialize
+        for lip in range(nlipids): header[lip], tail[lip]=[],[]
+        # Find header atoms, tail atoms
+        for atom in range(len(self.data["type"])):
+            a_id = atom + 1
+            if self.data["type"][atom] in hatoms:
+                header[self.data["mol"][atom]-1].append(atom)
+            if (a_id-tatoms[0])%apermol==0:
+                tail[self.data["mol"][atom]-1].append(atom)
+        hcom, tr = [],[]
+        for key in header:
+            hcom.append(COM(self,header[key]))
+        vecs=[]
+        # Find all vectors from lipid tail to head group, and note which leaflet is used
+        for lip in range(nlipids):
+            for atom in tail[lip]:
+                vecs.append(unitvec(hcom[lip],self.data["x"][atom],self.data["y"][atom],self.data["z"][atom]))
+        c2vals=[]
+        # Loop over vectors and calculate P2
+        for vec in vecs:
+            c2vals.append(c2(vec))
+        avc2 = np.average(c2vals)
+        self.add_data("c2",avc2)
+        return
 
 def find_leaflet(frame,hatom,rcut):
     """
@@ -233,20 +298,34 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('-fname', default="dump", type=str, help='dump file name')
-    parser.add_argument('-ext', default=".dat", type=str, help='dump file extension')
+    parser.add_argument('-nbins', default=12, type=int, help='Number of bins')
+    parser.add_argument('-opt', default=1, type=int, help='Choose Option')
     args = parser.parse_args()
     fname    = args.fname
-    ext      = args.ext
-    frames=[]
-    with open(fname+ext,'r') as f:
-        while True:
-            try:
-                fr = frame("lmps",f)
-            except:
-                break
-            frames.append(fr)
-        print("Read COMPLETE for %s%s, found %d frames" % (fname,ext,len(frames)))
-        print("Deleting final frame")
-        frames.pop()
-        print(len(frames))
-    pickle.dump(frames,open(fname+".pckl", 'wb'))
+    nbins    = args.nbins
+    opt      = args.opt
+    if opt == 1:
+        frames=[]
+        with open(fname+".dat",'r') as f:
+            while True:
+                try:
+                    fr = frame("lmps",f)
+                except:
+                    break
+                frames.append(fr)
+            print("Read COMPLETE for %s%s, found %d frames" % (fname,".dat",len(frames)))
+            print("Deleting final frame")
+            frames.pop()
+            print(len(frames))
+        pickle.dump(frames,open(fname+".pckl", 'wb'))
+    else:
+        frames=[]
+        for i in range(nbins):
+            fr = pickle.load(open(fname + "_" +str(i)+".pckl",'rb'))
+            frames.append(fr[-1])
+            frames[i].T=i
+        with open("dump_singlesnapshot.lmpstraj",'w') as f:
+            for i in range(nbins):
+                frames[i].write_lmpsdump(f)
+        print("Dumps have been written")
+
