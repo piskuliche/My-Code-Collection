@@ -140,67 +140,66 @@ class frame:
         dcomZ = dcomZ - self.L[2]*np.round(dcomZ/self.L[2])
         self.add_data("thickness",np.abs(dcomZ))
         return
-    def calc_p2(self,hatoms,tatoms):
-        try:
-            self.M
-        except:
-            self.add_mass(72)
-        def COM(self,atoms):
-            comx,comy,comz=0,0,0
-            denom = 0
-            for atom in atoms:
-                comx = comx + self.data["x"][atom]*self.M
-                comy = comy + self.data["y"][atom]*self.M
-                comz = comz + self.data["z"][atom]*self.M
-                denom = denom + self.M
-            rcom = np.array([comx/denom, comy/denom, comz/denom])
-            return rcom
-        def unitvec(r,x,y,z):
-            drx = r[0]-x
-            dry = r[1]-y
-            drz = r[2]-z
-            print(drx,dry,drz)
-            dr = np.sqrt(drx**2. + dry**2. + drz**2)
-            return np.array([drx/dr, dry/dr, drz/dr])
-        def c2(vec):
-            z = np.zeros(3)
-            z[2]=1
-            costhta = np.dot(vec,z)
-            return 0.5*(3*costhta**2. - 1)
+    
+def unit_vec_with_pbc(r1, r2, L):
+    # Simple function that takes two numpy arrays for coordinates and a list of box lengths (assumed to be lx,ly,lz)
+    # and then it returns a unit vector pointing from r2 to r1 as a numpy array.
+    dr_vec = np.zeros(3)
+    for i in range(3): 
+        dr_vec[i] = r1[i]-r2[i]
+        dr_vec[i] = dr_vec[i] - L[i] * np.round(dr_vec[i]/L[i])
+    drsq = np.sqrt(np.sum(np.dot(dr_vec,dr_vec)))
+    return dr_vec/drsq
 
-        # This calculates P2=0.5*(3 cos^2 theta -1)
-        # where theta = angle between bilayer normal (z axis) and the vector pointing from 
-        # second c2 bead to the FIRST headgroup atom
-        
-        # Calculate atoms per mol and num lipids
-        apermol = np.sum((self.data["mol"]==1)*1)
-        nlipids = int(self.N/apermol)
-        
-        header,tail = {},{}
-        # Initialize
-        for lip in range(nlipids): header[lip], tail[lip]=[],[]
-        # Find header atoms, tail atoms
-        for atom in range(len(self.data["type"])):
-            a_id = atom + 1
-            if self.data["type"][atom] in hatoms:
-                header[self.data["mol"][atom]-1].append(atom)
-            if (a_id-tatoms[0])%apermol==0:
-                tail[self.data["mol"][atom]-1].append(atom)
-        hcom, tr = [],[]
-        for key in header:
-            hcom.append(COM(self,header[key]))
-        vecs=[]
-        # Find all vectors from lipid tail to head group, and note which leaflet is used
-        for lip in range(nlipids):
-            for atom in tail[lip]:
-                vecs.append(unitvec(hcom[lip],self.data["x"][atom],self.data["y"][atom],self.data["z"][atom]))
-        c2vals=[]
-        # Loop over vectors and calculate P2
-        for vec in vecs:
-            c2vals.append(c2(vec))
-        avc2 = np.average(c2vals)
-        self.add_data("c2",avc2)
-        return
+def P2(x):
+    return 0.5*(3*np.power(x,2)-1)
+
+def find_vecs(frame,tail_pairs):
+        # This function takes the frame class object and a 2d array (shape (X,2) where X == number of pairs you choose)
+        # and it pulls coordinates and then calculates unit position vectors.
+        atoms_per_lipid_mol = np.sum((frame.data["mol"]==1)*1)
+        num_lipids = int(frame.N/atoms_per_lipid_mol)
+
+        vecs = []
+        for lipid in range(num_lipids):
+            lipid_start_id = lipid * atoms_per_lipid_mol + 1
+            for pair in tail_pairs:
+                # Note: -1 here accounts for the fact that both count from 1.
+                # This allows for non-pythonic input.
+                atom1_id = pair[0] - 1 + lipid_start_id
+                atom2_id = pair[1] - 1 + lipid_start_id
+                atom1_r, atom2_r = [],[]
+                cart = ["x","y","z"]
+                for i in range(3):
+                    atom1_r.append(frame.data[cart[i]][atom1_id-1])
+                    atom2_r.append(frame.data[cart[i]][atom2_id-1])
+                atom1_r, atom2_r = np.array(atom1_r), np.array(atom2_r)
+                vecs.append(unit_vec_with_pbc(atom1_r, atom2_r, frame.L))
+        return vecs
+
+
+def calc_P2(frame, tail_pairs):
+    # Fnd unit vectors
+    bond_vectors = find_vecs(frame, tail_pairs)
+    # Find P2 Values
+    z = np.array([0,0,1])
+    P2_values = []
+    for vec in bond_vectors:
+        P2_values.append(P2(np.dot(vec,z)))
+    P2_av = np.average(P2_values)
+    frame.add_data("P2",P2_av)
+    return P2_values
+
+
+
+                     
+
+
+
+
+
+    
+
 
 def find_leaflet(frame,hatom,rcut):
     """
@@ -318,6 +317,13 @@ if __name__ == "__main__":
             frames.pop()
             print(len(frames))
         pickle.dump(frames,open(fname+".pckl", 'wb'))
+    if opt == 2:
+        fr = pickle.load(open(fname + "_"+str(nbins)+".pckl",'rb'))
+        with open("dump_walker_"+str(nbins)+".lmpstraj",'w') as f:
+            for frame in fr:
+                frame.write_lmpsdump(f)
+        print("wrote walker %d" % str(nbins))
+
     else:
         frames=[]
         for i in range(nbins):
@@ -327,5 +333,6 @@ if __name__ == "__main__":
         with open("dump_singlesnapshot.lmpstraj",'w') as f:
             for i in range(nbins):
                 frames[i].write_lmpsdump(f)
+                #np.savetxt("temp"+str(i),frames[i].calc_p2([3],[6,10]))
         print("Dumps have been written")
 
