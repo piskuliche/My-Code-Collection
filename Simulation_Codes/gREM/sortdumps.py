@@ -58,6 +58,9 @@ class frame:
             self.data[field]=np.array(self.data[field])
         self.data[self.fields[0]]=np.array(sorted(self.data[self.fields[0]]))
         return
+    def clear_data(self):
+        for key in self.data:
+            self.data[key]=[]
     def write_lmpsdump(self,f):
         # Writes out the frame in a dump format to file "f"
         f.write("ITEM: TIMESTEP\n")
@@ -263,7 +266,7 @@ def find_leaflet(frame,hatom,rcut):
     
     
 
-
+# Potentially want to make this better so that not everything is stored in memory. 
 def get_frames(workdir,dumpbase, start, stop, nreps,walkloc):
     # Function that reads the frames for each walker.
     wframes, rframes = [],[]
@@ -317,7 +320,7 @@ if __name__ == "__main__":
             frames.pop()
             print(len(frames))
         pickle.dump(frames,open(fname+".pckl", 'wb'))
-    if opt == 2:
+    elif opt == 2:
         fr = pickle.load(open(fname + "_"+str(nbins)+".pckl",'rb'))
         with open("dump_walker_"+str(nbins)+".lmpstraj",'w') as f:
             for frame in fr:
