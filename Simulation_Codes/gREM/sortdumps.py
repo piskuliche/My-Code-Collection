@@ -267,7 +267,7 @@ def find_leaflet(frame,hatom,rcut):
     
 
 # Potentially want to make this better so that not everything is stored in memory. 
-def get_frames(workdir,dumpbase, start, stop, nreps,walkloc):
+def get_frames(workdir,dumpbase, start, stop, nreps,walkloc,hatom,rcut):
     # Function that reads the frames for each walker.
     wframes, rframes = [],[]
     print("Reading trajectory frames")
@@ -275,11 +275,17 @@ def get_frames(workdir,dumpbase, start, stop, nreps,walkloc):
         print("Reading walker %d of %d" % (walker, nreps))
         tmp = []
         for fl in range(start,stop):
+            print("fl",fl)
             with open(workdir+"/"+str(walker)+"/"+dumpbase+"-"+str(fl)+".dat",'r') as f:
                 while True:
                     fr=None
-                    try:
+                    try: # read frame, calculate properties, clear xyz data
                         fr = frame("lmps",f)
+                        fr,_ = find_leaflet(fr,hatom,rcut)
+                        fr.calc_thick([3,4])
+                        fr.calc_area()
+                        calc_P2(fr, [[5,6],[9,10]])
+                        fr.clear_data()
                     except:
                         break
                     tmp.append(fr)

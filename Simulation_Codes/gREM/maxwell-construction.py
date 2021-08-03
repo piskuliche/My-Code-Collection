@@ -92,7 +92,7 @@ def construct_maxwell(H,T,S,binstep,verbose):
     data={}
     while found == 0:
         count += 1
-        if count>10: sys.exit()
+        if count>100: sys.exit("Error: count too high")
         for t in range(len(beta_range)):
             dT = beta - beta_range[t]
             # Represent dT as a spline interpolation
@@ -154,4 +154,5 @@ if __name__ == "__main__":
         h, t, s = read_data(bname,0,1,2)
         bl_data.append(construct_maxwell(h,t,s,binstep,0))
     total_data = construct_maxwell(H,T,S,binstep,1)
+    print("test")
     Error(total_data,bl_data)

@@ -36,6 +36,8 @@ parser.add_argument('-lambdafile', default="grem.include", type=str, help='locat
 parser.add_argument('-restart', default=0, type=int, help='Should it read a restart file instead of going through reading files? [default=0]')
 parser.add_argument('-dumpbase', default="None", type=str, help='Base name of the dump file i.e. dump in dump-1.dat. [default=None]')
 parser.add_argument('-safe', default=1, type=int, help='Determines whether to identify leaflets every step or not [default=1 : every]')
+parser.add_argument('-hatom', default=4, type=int, help='Atom type for header atom')
+parser.add_argument('-rcut', default=12, type=float, help='Cutoff distance in A')
 args= parser.parse_args()
 
 setup   = args.setup
@@ -54,6 +56,8 @@ shouldrestart=args.restart
 dumpbase = args.dumpbase
 safeleaf = args.safe
 nblocks  = args.nb
+hatom   = args.hatom
+rcut    = args.rcut
 t_value = stats.t.ppf(0.975,nblocks-1)/np.sqrt(nblocks)
 
 if shouldrestart == 0:
@@ -228,7 +232,6 @@ if __name__ == "__main__":
         # read input file
         allwalkers=walkers(workdir,fstart,fend,walkloc,eta,Ho)
         pickle.dump(allwalkers,open(workdir+'/allwalkers.pckl','wb'))
-        if dumpbase != "None": get_frames(workdir, dumpbase, fstart, fend, len(lambdas), walkloc)
     elif dowalkdown == 0 and shouldrestart == 1:
         allwalkers=pickle.load(open(workdir+'/allwalkers.pckl','rb'),encoding='latin1')
         allwalkers.post_process(nbins,nblocks)

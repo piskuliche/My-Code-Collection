@@ -5,12 +5,18 @@ from scipy import stats
 from sortdumps import frame, get_frames,find_leaflet,calc_P2
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-dumpid', default=0, type=int, help='ID of dump to analyze [default=0]')
+parser.add_argument('-dumpid', default=0, type=int, help='ID of dump to analyze (walker-id) [default=0]')
 parser.add_argument('-dumpbase', default="None", type=str, help='Base name of the dump file i.e. dump in dump-1.dat. [default=None]')
 parser.add_argument('-safe', default=1, type=int, help='Determines whether to identify leaflets every step or not [default=1 : every]')
 parser.add_argument('-nb', default=5, type=int, help='Number of blocks [default=5]')
+parser.add_argument('-start', default=1, type=int, help='First dump to read [default=1]')
+parser.add_argument('-stop', default=11, type=int, help='Last dump to read [default=11]')
 parser.add_argument('-rcut', default=12, type=float, help='Cutoff distance in A [default=12]')
 parser.add_argument('-hatom',default=4, type=int, help='Atom type for header atom')
+parser.add_argument('-workdir',default=".", type=str, help='Workdir [default=.]')
+parser.add_argument('-nreps', default=40, type=int, help='Number of replicas [default=40]')
+parser.add_argument('-option',default=1, type=int, help='Options: [1] generate properties for single dump [2] join and sort [3] calculate stats')
+
 args = parser.parse_args()
 
 safeleaf    = args.safe
@@ -19,6 +25,11 @@ dumpid      = args.dumpid
 nblocks     = args.nb
 rcut        = args.rcut
 hatom       = args.hatom
+start       = args.start
+stop        = args.stop
+workdir     = args.workdir
+nreps       = args.nreps
+op          = args.option
 
 t_val = stats.t.ppf(0.975,nblocks-1)/np.sqrt(nblocks)
 
@@ -61,20 +72,63 @@ def calc_stats(frames,key):
     return
 
 if __name__ == "__main__":
-    # Basic example analysis
-    if dumpbase != "None":
-        # Reads frames
-        frames=pickle.load(open(dumpbase+"_"+str(dumpid)+".pckl",'rb'),encoding='latin1')
-        print("There are %d frames" % len(frames))
-        # Finds Leaflets
-        gen_leaf(frames)
-        # Calculates thickness and area
-        c2values=[]
-        for fr in range(len(frames)):
-            frames[fr].calc_thick([3,4])
-            frames[fr].calc_area()
-            calc_P2(frames[fr],[[5,6],[9,10]])
-        calc_stats(frames,"thickness")
-        calc_stats(frames, "area")
-        calc_stats(frames, "P2")
+    if dumpbase == "None":
+        exit("Error: please specify dumpbase")
+    if op == 1:
+        print("Reading walker %d" % dumpid)
+        walkframes = []
+        for fl in range(start,stop):
+            print("fl",fl)
+            with open(workdir+"/"+str(dumpid)+"/"+dumpbase+"-"+str(fl)+".dat",'r') as f:
+                c=0
+                leaflets=None
+                while True:
+                    fr=None
+                    try: # read frame, calculate properties, clear xyz data
+                        c = c + 1
+                        print(c)
+                        fr = frame("lmps",f)
+                    except:
+                        break
+                    # Analyze
+                    if safeleaf == 1:
+                            fr,_ = find_leaflet(fr,hatom,rcut)
+                    elif safeleaf == 0 and c == 1:
+                        fr, leaflets = find_leaflet(fr,hatom,rcut)
+                    elif safeleaf == 0 and c != 1:
+                        fr.add_leaflets(leaflets)
+                    else:
+                        print("Error invalid option for safeleaf")
+                    fr.calc_thick([3,4])
+                    fr.calc_area()
+                    calc_P2(fr, [[5,6],[9,10]])
+                    fr.clear_data()
+                    #add to tmp
+                    walkframes.append(fr)
+                walkframes.pop() # deletes final frame which is same as first frame of next dump
+        pickle.dump(walkframes,open("walker-"+str(dumpid)+".pckl",'wb'))
+    if op == 2:
+        wframes = []
+        allwalkers=pickle.load(open(workdir+'/allwalkers.pckl','rb'),encoding='latin1')
+        for walker in range(nreps):
+            wframes.append(pickle.load(open("walker-"+str(walker)+".pckl",'rb')))
+        for r in range(nreps):
+            tmp=wframes.T[np.where(walkloc[::rat]==r)]
+            pickle.dump(tmp,open("replica-"+dumpbase+"_"+str(r)+".pckl",'wb'))
+    if op == 3:
+        for rep in range(nreps):
+            # Reads frames
+            frames=pickle.load(open("replica-"+dumpbase+"_"+str(rep)+".pckl",'rb'),encoding='latin1')
+            print("There are %d frames" % len(frames))
+            # Finds Leaflets
+            calc_stats(frames,"thickness")
+            calc_stats(frames, "area")
+            calc_stats(frames, "P2")
+
+
+            
+        
+
+
+    
 
