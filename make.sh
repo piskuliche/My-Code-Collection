@@ -49,7 +49,11 @@ ln -s $homepath/Simulation_Analysis/Predict_Distributions/general_distribution.p
 ln -s $homepath/Simulation_Analysis/Viscosity/viscosity.py bin/visc
 ln -s $homepath/Simulation_Codes/WHAM/setup_wham.py bin/wham
 ln -s $homepath/Simulation_Codes/WHAM/wham.py bin/wham
-ln -s $homepath/Simulation_Codes/gREM/get-enthalpies.py bin/grem
+ln -s $homepath/Simulation_Codes/gREM/sortdumps.py bin/grem
+ln -s $homepath/Simulation_Codes/gREM/clean-grem.sh bin/grem
+ln -s $homepath/Simulation_Codes/gREM/dump_analyze.py bin/grem
+ln -s $homepath/Simulation_Codes/gREM/maxwell-construction.py bin/grem
+ln -s $homepath/Simulation_Codes/gREM/run_gREM.py bin/grem
 
 chmod 777 bin/msd/*
 chmod 777 bin/wham_gen/*
