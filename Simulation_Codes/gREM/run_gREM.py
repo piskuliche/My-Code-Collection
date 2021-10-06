@@ -38,6 +38,8 @@ parser.add_argument('-dumpbase', default="None", type=str, help='Base name of th
 parser.add_argument('-safe', default=1, type=int, help='Determines whether to identify leaflets every step or not [default=1 : every]')
 parser.add_argument('-hatom', default=4, type=int, help='Atom type for header atom')
 parser.add_argument('-rcut', default=12, type=float, help='Cutoff distance in A')
+parser.add_argument('-slurm', default=0, type=int, help='[0] not slurm [1] slurm')
+parser.add_argument('-tag', default="dppc", type=str, help='Tag output files [default=dppc]')
 args= parser.parse_args()
 
 setup   = args.setup
@@ -58,6 +60,8 @@ safeleaf = args.safe
 nblocks  = args.nb
 hatom   = args.hatom
 rcut    = args.rcut
+slurm   = args.slurm
+tag     = args.tag
 t_value = stats.t.ppf(0.975,nblocks-1)/np.sqrt(nblocks)
 
 if shouldrestart == 0:
@@ -153,7 +157,7 @@ def gen_walkdown(lambdas):
     f.write("#\n")
     f.write("#$ -l h_rt=11:45:00\n")
     f.write("#$ -j y\n")
-    f.write("#$ -N wdown\n")
+    f.write("#$ -N %s-wd\n"%tag)
     f.write("#$ -pe mpi_%d_tasks_per_node %d\n"% (nprocs,nprocs))
     f.write("#$ -V\n")
     f.write("\n")
@@ -181,7 +185,10 @@ def walkdown(lambdas):
     for rep in range(nreps):
         print("walking replica %d" % rep)
         os.chdir("./%s" % rep)
-        os.system("mpirun -np %d " % (nprocs/2) + lmp + " -sf omp -pk omp 2 -in " + "../" + lmpin + " -var lambda %g -var eta %g -var H0 %g > output" % (lambdas[rep], eta, Ho))
+        if slurm == 0:
+            os.system("mpirun -np %d " % (nprocs/2) + lmp + " -sf omp -pk omp 2 -in " + "../" + lmpin + " -var lambda %g -var eta %g -var H0 %g > output" % (lambdas[rep], eta, Ho))
+        else:
+            os.system("mpirun -np %d " % (nprocs/2) + lmp + " -in " + "../" + lmpin + " -var lambda %g -var eta %g -var H0 %g > output" % (lambdas[rep], eta, Ho))
         os.system("mv final_restart_file final_restart_file0")
         os.system("cp final_restart_file0 restart_file")
         os.system("cp final_restart_file0 ../%s/restart_file" % (rep+1))
@@ -231,6 +238,7 @@ if __name__ == "__main__":
         calculate_acceptance(walkloc)
         # read input file
         allwalkers=walkers(workdir,fstart,fend,walkloc,eta,Ho)
+        pickle.dump(walkloc,open(workdir+'/walkloc.pckl','wb'))
         pickle.dump(allwalkers,open(workdir+'/allwalkers.pckl','wb'))
     elif dowalkdown == 0 and shouldrestart == 1:
         allwalkers=pickle.load(open(workdir+'/allwalkers.pckl','rb'),encoding='latin1')

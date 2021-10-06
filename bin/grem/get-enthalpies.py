@@ -1,1 +1,0 @@
-/usr2/postdoc/piskulic/My-Code-Collection//Simulation_Codes/gREM/get-enthalpies.py

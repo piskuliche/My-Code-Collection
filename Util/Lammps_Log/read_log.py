@@ -44,7 +44,8 @@ with open(fname, 'r') as f:
         if readflag == 1:
             if line.split()[0] != items[0]:
                 for i in range(len(items)):
-                    data[items[i]].append(float(line.split()[i]))
+                    if "WARNING" not in line:
+                        data[items[i]].append(float(line.split()[i]))
 
 print("There are %s run commands" % len(runs))
 for r in range(len(runs)):

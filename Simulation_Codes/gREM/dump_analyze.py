@@ -45,7 +45,7 @@ def gen_leaf(frames):
         for fr in range(1,len(frames)):
             frames[fr].add_leaflets(leaflets)
 
-def calc_stats(frames,key):
+def calc_stats(frames,key,repid):
     # This takes a frame calc_data field (i.e. thickness) and then calculates the average (with uncertainty)
     data=[]
     for fr in frames:
@@ -53,8 +53,7 @@ def calc_stats(frames,key):
     data = np.array(data)
     hist,bins = np.histogram(data,bins=100)
     center = (bins[:-1] + bins[1:]) / 2
-    np.savetxt("hist/histogram_"+key+"_"+str(dumpid)+".out",np.c_[center,hist])
-    print(np.average(data),np.std(data))
+    np.savetxt("hist/histogram_"+key+"_"+str(repid)+".out",np.c_[center,hist])
     bl_data = np.split(data,nblocks)
     bl_av = np.average(bl_data,axis=1)
     try:
@@ -62,11 +61,11 @@ def calc_stats(frames,key):
     except:
         pass
     bl_err = np.std(bl_av,axis=0)*t_val
-    f=open("temp/"+key+"_dump_"+str(dumpid)+".out",'w')
+    f=open("temp/"+key+"_dump_"+str(repid)+".out",'w')
     f.write("%d %10.5f +/- %10.5f\n" %(dumpid,np.average(data),bl_err))
     f.close()
     for block in range(len(bl_av)):
-        g=open("temp/bl_"+str(block)+"_"+key+"_dump_"+str(dumpid)+".out",'w')
+        g=open("temp/bl_"+str(block)+"_"+key+"_dump_"+str(repid)+".out",'w')
         g.write("%d %10.5f\n" %(dumpid,bl_av[block]))
         g.close()
     return
@@ -109,21 +108,25 @@ if __name__ == "__main__":
         pickle.dump(walkframes,open("walker-"+str(dumpid)+".pckl",'wb'))
     if op == 2:
         wframes = []
+        walkloc=pickle.load(open(workdir+'/walkloc.pckl','rb'),encoding='latin1')
         allwalkers=pickle.load(open(workdir+'/allwalkers.pckl','rb'),encoding='latin1')
         for walker in range(nreps):
             wframes.append(pickle.load(open("walker-"+str(walker)+".pckl",'rb')))
+        wframes = np.array(wframes)
+        print(np.shape(walkloc))
+        print(walkloc[0])
+        rat = int(np.shape(walkloc)[0]/len(wframes[0]))
         for r in range(nreps):
-            tmp=wframes.T[np.where(walkloc[::rat]==r)]
+            tmp=wframes.T[np.where(walkloc[::rat]==r)[1]].T[r]
             pickle.dump(tmp,open("replica-"+dumpbase+"_"+str(r)+".pckl",'wb'))
     if op == 3:
         for rep in range(nreps):
             # Reads frames
             frames=pickle.load(open("replica-"+dumpbase+"_"+str(rep)+".pckl",'rb'),encoding='latin1')
-            print("There are %d frames" % len(frames))
             # Finds Leaflets
-            calc_stats(frames,"thickness")
-            calc_stats(frames, "area")
-            calc_stats(frames, "P2")
+            calc_stats(frames,"thickness",rep)
+            calc_stats(frames, "area",rep)
+            calc_stats(frames, "P2",rep)
 
 
             

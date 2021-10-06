@@ -253,13 +253,28 @@ def find_leaflet(frame,hatom,rcut):
                             seen.add(neighbor)
                             queue.append(neighbor)
                 yield component
-    connectivity={}
-    hmask = frame.data["type"]==hatom
-    # For every atom, find connectivity within distance rcut away
-    for atom in frame.data["id"][hmask]:
-        connectivity[atom]=calc_neigh(frame,atom,hmask,rcut)
-    # Sorts into leaflets
-    leaflets = list(find_connections(connectivity))
+    def grab_leaf(frame,hatom,rcut):
+        connectivity={}
+        hmask = frame.data["type"]==hatom
+        # For every atom, find connectivity within distance rcut away
+        for atom in frame.data["id"][hmask]:
+            connectivity[atom]=calc_neigh(frame,atom,hmask,rcut)
+        # Sorts into leaflets
+        leaflets = list(find_connections(connectivity))
+        return leaflets
+    leaflets=[]
+    c=0
+    while len(leaflets) != 2:
+        if c < 10:
+            leaflets=grab_leaf(frame,hatom,rcut)
+            if len(leaflets) != 2:
+                rcut = rcut + 0.5
+                print("redefining leaflet cutoff to %10.5f" % rcut)
+        else:
+            exit("Error: too many leaf iterations")
+
+
+
     # Adds to frame
     frame.add_leaflets(leaflets)
     return frame,leaflets

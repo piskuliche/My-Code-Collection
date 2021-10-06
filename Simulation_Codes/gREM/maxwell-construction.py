@@ -86,6 +86,7 @@ def calc_gibbs_hull(roots,H,T,S,brange,verbose):
     return data
 
 def construct_maxwell(H,T,S,binstep,verbose):
+    import matplotlib.pyplot as plt
     beta = np.divide(1,T)
     beta_range = np.arange(1/Tmax,1/Tmin, binstep)
     count, found = 0, 0
@@ -96,10 +97,18 @@ def construct_maxwell(H,T,S,binstep,verbose):
         for t in range(len(beta_range)):
             dT = beta - beta_range[t]
             # Represent dT as a spline interpolation
-            dTfit = interpolate.splrep(H,dT) 
+            dTfit = interpolate.splrep(H,dT)
+            """
+            hmin, hmax = H.min(), H.max()
+            hh = np.linspace(hmin,hmax,200)
+            spline = interpolate.BSpline(dTfit[0],dTfit[1],dTfit[2],extrapolate=False)
+            plt.plot(hh, spline(hh))
+            plt.show()
+            """
             # Find the roots of dT
             roots = interpolate.sproot(dTfit, mest=200)
             if len(roots)<3:
+                print(roots,np.shape(dTfit))
                 sys.exit("Error: Not enough crossing in interpolation")
             area = []
             # Calculate area of roots by integrating between them

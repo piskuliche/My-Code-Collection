@@ -16,6 +16,7 @@ mkdir bin/visc
 mkdir bin/occupancy
 mkdir bin/wham
 mkdir bin/grem
+mkdir bin/vesc
 
 
 # Sets up the symlinks
@@ -54,6 +55,8 @@ ln -s $homepath/Simulation_Codes/gREM/clean-grem.sh bin/grem
 ln -s $homepath/Simulation_Codes/gREM/dump_analyze.py bin/grem
 ln -s $homepath/Simulation_Codes/gREM/maxwell-construction.py bin/grem
 ln -s $homepath/Simulation_Codes/gREM/run_gREM.py bin/grem
+ln -s $homepath/Simulation_Codes/gREM/auto_gen.py bin/grem
+ln -s $homepath/Simulation_Analysis/Vesicle_Analyzer/vesc_calc.exe bin/vesc
 
 chmod 777 bin/msd/*
 chmod 777 bin/wham_gen/*
@@ -67,3 +70,4 @@ chmod 777 bin/visc/*
 chmod 777 bin/occupancy/*
 chmod 777 bin/wham/*
 chmod 777 bin/grem/*
+chmod 777 bin/vesc/*

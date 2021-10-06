@@ -1,3 +1,16 @@
+! This code does a number of things related to calculations on vesicles.
+! Copyright 2021, Zeke Piskulich, Boston University
+! All questions should be emailed to piskulichz@gmail.com
+
+! Required inpute: vescle.in
+! Features:
+! 1) Calculates vesicle COM
+! 2) Calculates which lipids belong to which leaflet using lipid tail vector in relation to COM
+! 3) Calculates vesicle radial profile (bug: needs to include bin volume factor)
+! 4) Calculates water content
+! 5) Calculates ion content 
+
+
 module constants
   implicit none
 
@@ -8,8 +21,10 @@ end module constants
 
 module parameters
   integer :: lipstart, lipstop,frame
-  integer :: ufile, lfile, drhfile,drfile, tfile, hdrfile, ldrfile
+  integer :: ufile, lfile, drhfile,drfile, tfile, hdrfile, ldrfile, liporient
+  integer :: watcontent, ioncontent
   integer :: nmol, nframes, atoms_per_mol, hg_index, lg_index, natoms
+  integer :: nw, nion
   real :: L
   real :: rmin, rmax, rbin
   character(len=20) :: lengthfile, trajfile
@@ -27,9 +42,18 @@ Program CalcVesc
   implicit none
   integer :: ftype
   integer :: i, j, k
+  integer :: wstart, wstop, istart, istop
+
+  real :: r_vesc
   real, dimension(3) :: comr
   real, allocatable :: r(:,:)
   call Read_Input()
+  ! Set water and ion starting indices
+  wstart = nmol*atoms_per_mol+1; wstop = wstart+nw
+  istart = wstop + 1; istop = istart + nion
+  write(*,*) wstart, wstop
+  write(*,*) istart, istop
+
   ! Allocations
   allocate(r(natoms,3))
   ! End Allocations
@@ -37,24 +61,32 @@ Program CalcVesc
   !Input
   tfile=11; lfile=12; 
   open(tfile, file=trim(trajfile), status='old')
-  open(lfile, file=trim(lengthfile), status='old')
+  if (ftype .eq. 1) open(lfile, file=trim(lengthfile), status='old')
   ! Output
   drfile=21; drhfile=22
   hdrfile=23; ldrfile=24
+  liporient=25; 
+  watcontent=26; ioncontent=27
   open(drhfile,file="drh_out.dat")
   open(drfile, file="dr_out_hist_raw.dat")
   open(hdrfile, file="hdr_out_hist_raw.dat")
   open(ldrfile, file="ldr_out_hist_raw.dat")
+  open(liporient, file='liporient_data.dat')
+  open(watcontent, file='watcontent_data.dat')
+  open(ioncontent, file='ioncontent_data.dat')
   ! Operations on that frame
   do frame=1,nframes
     call ReadFrame(11,12,2,r)
     call Calc_VescAltCOM(r,comr)
-    call Calc_RadialProfile(r,comr)  
+    call Calc_RadialProfile(r,comr,r_vesc)
+    if ( nw > 0 ) call Calc_Content(r,comr,r_vesc,wstart,wstop,watcontent)
+    if ( nion > 0) call Calc_Content(r,comr,r_vesc,istart,istop,ioncontent)
   enddo
   close(tfile)
   close(lfile)
   close(drhfile)
   close(drfile)
+  close(liporient)
   write(*,*) "End Program"
 End Program CalcVesc
 
@@ -70,6 +102,8 @@ Subroutine Read_Input()
   read(10,*)
   read(10,*) nmol, atoms_per_mol
   read(10,*)
+  read(10,*) nw, nion
+  read(10,*)
   read(10,*) hg_index, lg_index
   read(10,*)
   read(10,*) nframes
@@ -84,13 +118,50 @@ Subroutine Read_Input()
   close(10)
 End Subroutine Read_Input
 
-Subroutine Calc_RadialProfile(r,comr)
+Subroutine Calc_Content(r,comr,r_vesc,rstart,rstop,ftab)
+  use constants
+  use parameters
+  implicit none
+  integer :: i, j
+  integer :: cnt_inside, cnt_outside
+  integer :: rstart, rstop
+  integer :: ftab
+  
+  real  :: r_vesc
+  real, dimension(3) :: drtmp, comr
+  real, dimension(natoms) :: wdrsq, wdr
+  real, dimension(natoms,3) :: r
+
+
+  wdrsq=0; drtmp=0; wdr = 0
+  cnt_inside=0; cnt_outside=0
+  do i=rstart,rstop
+    ! Calculate distance from vesicle COM
+    do j=1,3
+      drtmp(j) = r(i,j)-comr(j)
+      drtmp(j) = drtmp(j) - L*anint(drtmp(j)/L)
+      wdrsq(i) = wdrsq(i) + drtmp(j)**2.
+      wdr(i) = sqrt(wdrsq(i))
+    enddo !j
+    if (wdr(i) < r_vesc) then
+      ! inside the vesicle
+      cnt_inside  = cnt_inside  + 1
+    else
+      ! outside the vesicle
+      cnt_outside = cnt_outside + 1
+    endif
+  enddo!i
+  write(ftab,*) frame, cnt_inside, cnt_outside
+
+End Subroutine
+
+Subroutine Calc_RadialProfile(r,comr, r_vesc)
   use constants
   use parameters
   implicit none
   integer :: i, j, atom,a_id, h_id,l_id
   integer :: cnt_inner, cnt_outer
-  real :: M, dr_outer, dr_inner
+  real :: M, dr_outer, dr_inner, r_vesc
   real, dimension(3) :: comr, drtmp_h, drtmp_l,drtmp
   real, dimension(nmol) :: dr_h, dr_l
   real, dimension(natoms) :: drsq, dr 
@@ -109,9 +180,12 @@ Subroutine Calc_RadialProfile(r,comr)
       a_id = (i-1)*atoms_per_mol + atom
       do j=1,3
         drtmp(j) = r(a_id,j) -comr(j)
-        drtmp(j) = drtmp(j) + L*anint(drtmp(j)/L)
+        !write(*,*) drtmp(j), r(a_id,j), comr(j),  L*anint(drtmp(j)/L)
+        drtmp(j) = drtmp(j) - L*anint(drtmp(j)/L)
+        !write(*,*) drtmp(j), L
         drsq(a_id) = drsq(a_id) + drtmp(j)**2.
         dr(a_id) = sqrt(drsq(a_id))
+        !write(*,*) dr(a_id)
       enddo !j
       if (h_id .eq. a_id) then
         dr_h(i) = dr(a_id)
@@ -121,17 +195,20 @@ Subroutine Calc_RadialProfile(r,comr)
       endif
     enddo !atom
     if (dr_h(i) > dr_l(i)) then
-      dr_outer = dr_outer + sqrt(dr_h(i))
+      dr_outer = dr_outer + dr_h(i)
       cnt_outer = cnt_outer + 1
     else
-      dr_inner = dr_inner + sqrt(dr_h(i))
+      dr_inner = dr_inner + dr_h(i)
       cnt_inner = cnt_inner + 1
     endif
   enddo!i
   call Histogram(dr, nmol*atoms_per_mol, rmin, rmax, rbin, drfile)
   call Histogram(dr_h, nmol, rmin, rmax, rbin, hdrfile)
   call Histogram(dr_l, nmol, rmin, rmax, rbin, ldrfile)
-  write(drhfile,*) frame, dr_outer/real(cnt_outer), dr_inner/real(cnt_inner)
+  ! Calculate vesicle radius as halfway between inner and outer leaflets.
+  r_vesc = (dr_outer/real(cnt_outer)-dr_inner/real(cnt_inner))/2 + dr_inner/real(cnt_inner)
+  write(liporient,*) frame, cnt_outer, cnt_inner
+  write(drhfile,*) frame, dr_outer/real(cnt_outer), dr_inner/real(cnt_inner), r_vesc
 End Subroutine Calc_RadialProfile
 
 Subroutine Histogram(values,n,min_val, max_val, nbins,fout)
@@ -144,6 +221,7 @@ Subroutine Histogram(values,n,min_val, max_val, nbins,fout)
   do i=1, n
     bin = ceiling((values(i)-min_val)/bwidth)
     if (bin > nbins) then
+      write(*,*) bin, nbins,values(i)
       stop "Error: Bins should be widened"
     endif
     if (bin .eq. 1) then
@@ -221,13 +299,13 @@ Subroutine  ReadFrame(ufile,lfile,ftype,r)
   implicit none
   integer :: i, j, k
   integer :: ufile, ftype, lfile
-  real :: ctmp
+  real :: ctmp, xlo, xhi, ylo, yhi, zlo, zhi
   real, dimension(natoms,3) :: r
   r=0.0
   if (mod(frame,100) .eq. 0) then
     write(*,*) frame
   endif
-  read(lfile,*) L
+  if (ftype .eq. 1) read(lfile,*) L
   if (ftype .eq. 1) then
     do i = 1, 2
       read(ufile,*)
@@ -236,9 +314,16 @@ Subroutine  ReadFrame(ufile,lfile,ftype,r)
         read(ufile,*) ctmp, r(i,1), r(i,2), r(i,3)
     enddo ! i
   else if (ftype .eq. 2) then
-    do i = 1, 9
-      read(ufile,*)
-    enddo
+    read(ufile,*)
+    read(ufile,*)
+    read(ufile,*)
+    read(ufile,*)
+    read(ufile,*)
+    read(ufile,*) xlo, xhi
+    read(ufile,*) ylo, yhi
+    read(ufile,*) zlo, zhi
+    read(ufile,*)
+    L = xhi - xlo
     do i = 1, natoms
     read(ufile,*) ctmp, ctmp, r(i,1), r(i,2), r(i,3)
     enddo ! i
