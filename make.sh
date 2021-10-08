@@ -56,6 +56,7 @@ ln -s $homepath/Simulation_Codes/gREM/dump_analyze.py bin/grem
 ln -s $homepath/Simulation_Codes/gREM/maxwell-construction.py bin/grem
 ln -s $homepath/Simulation_Codes/gREM/run_gREM.py bin/grem
 ln -s $homepath/Simulation_Codes/gREM/auto_gen.py bin/grem
+ln -s $homepath/Simulation_Codes/gREM/pull_configs.py bin/grem
 ln -s $homepath/Simulation_Analysis/Vesicle_Analyzer/vesc_calc.exe bin/vesc
 
 chmod 777 bin/msd/*

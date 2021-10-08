@@ -212,12 +212,19 @@ Subroutine Calc_RadialProfile(r,comr, r_vesc)
 End Subroutine Calc_RadialProfile
 
 Subroutine Histogram(values,n,min_val, max_val, nbins,fout)
+  ! Note - this is a general histogram function that does not normalize
+  ! it just provides the number of counts in each bin. This is better
+  ! because it lets you normalize the file after the fact, but it is good to be 
+  ! aware of it.
+  use constants
   integer :: i, j, n, cnt, bin, fout
   real  :: min_val, max_val, nbins,bwidth
+  real :: rout, rin
   real, dimension(n) :: values
   integer, dimension(nbins) :: hist
+  real, dimension(nbins) :: norm
   bwidth = (max_val-min_val)/nbins
-  hist=0; cnt=0
+  hist=0; cnt=0;  norm=0.0
   do i=1, n
     bin = ceiling((values(i)-min_val)/bwidth)
     if (bin > nbins) then
@@ -229,9 +236,16 @@ Subroutine Histogram(values,n,min_val, max_val, nbins,fout)
     endif
     hist(bin) = hist(bin) + 1
     cnt = cnt + 1
-  enddo !i
+  enddo
+  ! Handle normalization
+  do i=1,nbins
+    rout = i*bwidth + min_val
+    rin = (i-1)*bwidth + min_val
+    norm(i) = 4.0/3.0*pi*(rout**3-rin**3)
+  enddo!i
+
   do i=1, nbins
-    write(fout,*) i*bwidth-bwidth/2.0+min_val, hist(i)
+    write(fout,*) i*bwidth-bwidth/2.0+min_val, hist(i), norm(i)
   enddo!i
 
 End Subroutine
