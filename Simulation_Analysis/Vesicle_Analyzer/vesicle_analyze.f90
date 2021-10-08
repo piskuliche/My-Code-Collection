@@ -6,9 +6,11 @@
 ! Features:
 ! 1) Calculates vesicle COM
 ! 2) Calculates which lipids belong to which leaflet using lipid tail vector in relation to COM
-! 3) Calculates vesicle radial profile (bug: needs to include bin volume factor)
+! 3) Calculates vesicle radial profile 
 ! 4) Calculates water content
-! 5) Calculates ion content 
+! 5) Calculates ion content
+! Planned:
+! 6) Calculate ALL profiles based on atoms per mol. 
 
 
 module constants
@@ -22,6 +24,7 @@ end module constants
 module parameters
   integer :: lipstart, lipstop,frame
   integer :: ufile, lfile, drhfile,drfile, tfile, hdrfile, ldrfile, liporient
+  integer :: tailfile
   integer :: watcontent, ioncontent
   integer :: nmol, nframes, atoms_per_mol, hg_index, lg_index, natoms
   integer :: nw, nion
@@ -47,6 +50,7 @@ Program CalcVesc
   real :: r_vesc
   real, dimension(3) :: comr
   real, allocatable :: r(:,:)
+  character(len=20) :: tempfilename
   call Read_Input()
   ! Set water and ion starting indices
   wstart = nmol*atoms_per_mol+1; wstop = wstart+nw
@@ -67,6 +71,7 @@ Program CalcVesc
   hdrfile=23; ldrfile=24
   liporient=25; 
   watcontent=26; ioncontent=27
+  atomfile = 49
   open(drhfile,file="drh_out.dat")
   open(drfile, file="dr_out_hist_raw.dat")
   open(hdrfile, file="hdr_out_hist_raw.dat")
@@ -74,6 +79,11 @@ Program CalcVesc
   open(liporient, file='liporient_data.dat')
   open(watcontent, file='watcontent_data.dat')
   open(ioncontent, file='ioncontent_data.dat')
+  do i=1, atoms_per_mol
+    write(tempfilename,"atomdr_",i0,"_hist_raw.dat") i
+    write(*,*) trim(tempfilename)
+    open(atomfile+i, file=trim(tempfilename))
+  enddo
   ! Operations on that frame
   do frame=1,nframes
     call ReadFrame(11,12,2,r)
