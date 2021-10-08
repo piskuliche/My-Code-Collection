@@ -174,6 +174,7 @@ Subroutine Calc_RadialProfile(r,comr, r_vesc)
   real :: M, dr_outer, dr_inner, r_vesc
   real, dimension(3) :: comr, drtmp_h, drtmp_l,drtmp
   real, dimension(nmol) :: dr_h, dr_l
+  real, dimension(nmol,atoms_per_mol) :: dr_atom
   real, dimension(natoms) :: drsq, dr 
   real, dimension(natoms,3) :: r
   integer, dimension(nmol*atoms_per_mol) :: rprofile
@@ -182,6 +183,7 @@ Subroutine Calc_RadialProfile(r,comr, r_vesc)
   cnt_inner = 0; cnt_outer = 0
   dr_outer = 0.0; dr_inner = 0.0
   drsq = 0.0; dr =0.0
+  dr_atom=0.0
   h_id=1; l_id = 1
   do i=1,nmol
     h_id = (i-1)*atoms_per_mol+hg_index
@@ -203,6 +205,7 @@ Subroutine Calc_RadialProfile(r,comr, r_vesc)
       if (l_id .eq. a_id) then
         dr_l(i) = dr(a_id)
       endif
+      dr_atom(i,atom) = dr(a_id)
     enddo !atom
     if (dr_h(i) > dr_l(i)) then
       dr_outer = dr_outer + dr_h(i)
@@ -212,6 +215,9 @@ Subroutine Calc_RadialProfile(r,comr, r_vesc)
       cnt_inner = cnt_inner + 1
     endif
   enddo!i
+  do i=1,atoms_per_mol
+    call Histogram(dr_atom, nmol, rmin, rmax, rbin, atomfile+i)
+  enddo
   call Histogram(dr, nmol*atoms_per_mol, rmin, rmax, rbin, drfile)
   call Histogram(dr_h, nmol, rmin, rmax, rbin, hdrfile)
   call Histogram(dr_l, nmol, rmin, rmax, rbin, ldrfile)
