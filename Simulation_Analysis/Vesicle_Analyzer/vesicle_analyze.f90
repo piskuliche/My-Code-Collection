@@ -24,7 +24,7 @@ end module constants
 module parameters
   integer :: lipstart, lipstop,frame
   integer :: ufile, lfile, drhfile,drfile, tfile, hdrfile, ldrfile, liporient
-  integer :: tailfile
+  integer :: atomfile
   integer :: watcontent, ioncontent
   integer :: nmol, nframes, atoms_per_mol, hg_index, lg_index, natoms
   integer :: nw, nion
@@ -50,7 +50,7 @@ Program CalcVesc
   real :: r_vesc
   real, dimension(3) :: comr
   real, allocatable :: r(:,:)
-  character(len=20) :: tempfilename
+  character(len=40) :: tempfilename
   call Read_Input()
   ! Set water and ion starting indices
   wstart = nmol*atoms_per_mol+1; wstop = wstart+nw
@@ -80,7 +80,7 @@ Program CalcVesc
   open(watcontent, file='watcontent_data.dat')
   open(ioncontent, file='ioncontent_data.dat')
   do i=1, atoms_per_mol
-    write(tempfilename,"atomdr_",i0,"_hist_raw.dat") i
+    write(tempfilename,"('atomdr_',i0,'_hist_raw.dat')") i
     write(*,*) trim(tempfilename)
     open(atomfile+i, file=trim(tempfilename))
   enddo
