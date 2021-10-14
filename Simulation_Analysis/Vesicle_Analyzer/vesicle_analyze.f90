@@ -216,7 +216,7 @@ Subroutine Calc_RadialProfile(r,comr, r_vesc)
     endif
   enddo!i
   do i=1,atoms_per_mol
-    call Histogram(dr_atom, nmol, rmin, rmax, rbin, atomfile+i)
+    call Histogram(dr_atom(:,i), nmol, rmin, rmax, rbin, atomfile+i)
   enddo
   call Histogram(dr, nmol*atoms_per_mol, rmin, rmax, rbin, drfile)
   call Histogram(dr_h, nmol, rmin, rmax, rbin, hdrfile)

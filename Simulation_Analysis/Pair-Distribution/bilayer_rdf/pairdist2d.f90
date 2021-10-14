@@ -8,7 +8,7 @@ Program pairdist
       integer :: cnt, cnt1, cnt2, nb, tmp    ! Counters
       integer :: selec1, selec2, n1, n2 ! Type Selections, number each type
       integer :: nconfigs, startconfig, endconfig, rconfigs
-      integer :: startskip, endskip
+      integer :: startskip, endskip, headatom, tailatom
       integer :: natoms, or_int, nblocks
       integer :: ioerr, eweight, reweight
 
@@ -45,7 +45,7 @@ Program pairdist
       
       NAMELIST /nml/ nfile, dr, startconfig, endconfig, startskip, endskip,&
       nblocks, selec1, selec2, L, or_int, natoms, molfile, eweight, efile, &
-      etype, reweight
+      etype, reweight, headatom, tailatom
 
       ! Example Defaults
       nfile             = "traj.xyz"    ! Trajectory File Name
@@ -65,6 +65,8 @@ Program pairdist
       efile             = "e_init.out"  ! Energy Weight File
       etype             = "e"           !
       reweight          = 0             ! Should reweight by prob dist [0] off [1] on
+      headatom          = 1             ! Integer id for the lipid head group
+      tailatom          = 10            ! Integer id for the lipid tail group
 
       
       ! Reads the namelist from standard input
@@ -93,6 +95,8 @@ Program pairdist
       write(*,*) 'selec1: ', selec1
       write(*,*) 'selec2: ', selec2
       write(*,*) 'dr: ', dr
+      write(*,*) 'headatom: ', headatom
+      write(*,*) 'tailatom: ', tailatom
       write(*,*) '*************'
 
 
@@ -181,20 +185,22 @@ Program pairdist
       if (selec1 /= selec2) rho=REAL(n2)
 
       ! Sets the constants for an nvt run
-      const = pi * rho ! Const for multiplying 
+      !const = pi * rho ! Const for multiplying 
+      ! As this 2D rdf is aimed at calculating per leaflet info, the number
+      ! is left out of the ideal part at this point
       if ( L > 0 ) then
           write(*,*) dr
           do b=1, nb
             r_lo = REAL( b-1 ) * dr
             r_hi = r_lo + dr
-            h_id(b) = const * ( r_hi**2.0 - r_lo ** 2.0 ) ! Ideal Number
+            h_id(b) = pi * ( r_hi**2.0 - r_lo ** 2.0 ) ! Ideal Number
           enddo
       else
           do i=1,rconfigs
               do b=1, nb
                 r_lo = real( b-1 ) *nptdr(i)
                 r_hi = r_lo + nptdr(i)
-                npth_id(i,b) = const * (r_hi**2.0 - r_lo ** 2.0)
+                npth_id(i,b) = pi * (r_hi**2.0 - r_lo ** 2.0)
               enddo
           enddo
       endif
