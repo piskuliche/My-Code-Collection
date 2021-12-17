@@ -57,6 +57,9 @@ ln -s $homepath/Simulation_Codes/gREM/maxwell-construction.py bin/grem
 ln -s $homepath/Simulation_Codes/gREM/run_gREM.py bin/grem
 ln -s $homepath/Simulation_Codes/gREM/auto_gen.py bin/grem
 ln -s $homepath/Simulation_Codes/gREM/pull_configs.py bin/grem
+ln -s $homepath/Simulation_Codes/gREM/grem_sort.exe bin/grem
+ln -s $homepath/Simulation_Codes/gREM/grem_analyze.exe bin/grem
+ln -s $homepath/Simulation_Codes/gREM/set_analysis.py bin/grem
 ln -s $homepath/Simulation_Analysis/Vesicle_Analyzer/vesc_calc.exe bin/vesc
 ln -s $homepath/Simulation_Analysis/Vesicle_Analyzer/analyze_hist.py bin/vesc
 

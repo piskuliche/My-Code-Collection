@@ -1,0 +1,10 @@
+# sysfile, trajfile, lengthfile
+coords.lmpstrj L.dat 
+# nmol, atoms_per_mol
+10 12
+# atom_index
+1
+# nframes, nstart, nstop
+10 1 10
+# nsep, nskip
+2 1

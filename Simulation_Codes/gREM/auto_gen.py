@@ -91,6 +91,6 @@ with open("step_analyze.sh",'w') as f:
     f.write("mkdir -p anal\n")
     f.write("cd anal\n")
     f.write("run_gREM.py -start 1 -stop 11 -eta %5.2f -Ho %8.2f -workdir .. -nbins 100 -nb %d -restart 0\n" % (eta, Ho, nblocks))
-    f.write("run_gREM.py -start 1 -stop 11 -eta %5.2f -Ho %8.2f -workdir .. -bins 100 -nb %d -restart 1\n" % (eta,Ho,nblocks))
+    f.write("run_gREM.py -start 1 -stop 11 -eta %5.2f -Ho %8.2f -workdir .. -nbins 100 -nb %d -restart 1\n" % (eta,Ho,nblocks))
     f.write("cd ..\n")
 

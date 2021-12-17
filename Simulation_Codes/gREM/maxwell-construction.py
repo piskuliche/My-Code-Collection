@@ -98,13 +98,15 @@ def construct_maxwell(H,T,S,binstep,verbose):
             dT = beta - beta_range[t]
             # Represent dT as a spline interpolation
             dTfit = interpolate.splrep(H,dT)
-            """
+            """ 
             hmin, hmax = H.min(), H.max()
             hh = np.linspace(hmin,hmax,200)
             spline = interpolate.BSpline(dTfit[0],dTfit[1],dTfit[2],extrapolate=False)
-            plt.plot(hh, spline(hh))
+            plt.plot(H,dT,'bo')
+            plt.plot(hh, spline(hh),color="red")
             plt.show()
             """
+            
             # Find the roots of dT
             roots = interpolate.sproot(dTfit, mest=200)
             if len(roots)<3:
