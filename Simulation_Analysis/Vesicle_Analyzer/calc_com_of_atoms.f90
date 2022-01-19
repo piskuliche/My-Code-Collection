@@ -6,16 +6,20 @@ end module constants
 module parameters
   integer :: nspecies,nframes
   integer, dimension(10) :: atoms_per_species
+  integer, dimension(10) :: should_calc
   real, dimension(3) :: L
   integer :: atom_start, atom_stop, natoms
-  integer :: ufile, lfile
+  integer :: fstart, fstop
+  integer :: ufile,cfile,lfile
+  integer :: frame,f_id, f
   real :: ctmp, xlo, xhi, ylo, yhi, zlo, zhi
 
   common nspecies,nframes
   common atoms_per_species
-  common L
+  common L,frame
   common atom_start, atom_stop, natoms
-  common ufile
+  common ufile,cfile,lfile
+  common fstart, fstop, f_id
   common ctmp, xlo, xhi, ylo, yhi, zlo, zhi
 end module parameters
 
@@ -28,25 +32,51 @@ Program Main
   integer i, j, k
   real, allocatable :: r(:,:)
   real, dimension(10,3) :: com_r
+  character(len=40) :: tempfilename,tempfilename2
 
-  atoms_per_species(:)=0 
-  ufile=11; lfile = 12
+  atoms_per_species(:)=0; should_calc(:) = 0 
+  ufile=11
+  open(ufile,file='coords.lmpstrj-0',status='old')
+  
+  ! Read the Input File
   call Read_Input(atoms_per_species)
+  
+  ! Open the output files
+  cfile=20
+  do i=1,10
+    write(tempfilename,"('atom_',i0,'_com.dat')") i
+    if (should_calc(i) .eq. 1) then
+      open(cfile+i, file=tempfilename)
+    endif 
+  enddo
+  lfile=13
+  open(lfile,file="box_dimensions.dat")
+
+
   allocate(r(natoms,3))
   r(:,:) = 0.0
   
   do i=1,nspecies
     write(*,*) atoms_per_species(i)
   end do
-
-  do frame=1,nframes
-    call Read_Frame(r)
-    atom_start = 0; atom_stop = 0.0
-    do i=1, nspecies
-      atom_start = atom_stop + 1
-      atom_stop = atom_start + atoms_per_species(i)
-      call Calc_COM(r, atom_start, atom_stop, com_r(i,:))
-    end do
+  do f=fstart,fstop
+    ufile=11
+    write(tempfilename2,"('coords.lmpstrj-',i0)") f
+    open(ufile,file=tempfilename2,status='old')
+    do frame=1,nframes
+      f_id = (f-fstart)*nframes + frame
+      call Read_Frame(r)
+      write(lfile,*) f_id, L(1), L(2), L(3)
+      atom_start = 0; atom_stop = 0.0
+      do i=1, nspecies
+        atom_start = atom_stop + 1
+        atom_stop = atom_start + atoms_per_species(i)
+        if (should_calc(i) .eq. 1) then
+          call Calc_COM(r, atom_start, atom_stop, com_r(i,:))
+          write(cfile+i,*) f_id, com_r(i,1), com_r(i,2), com_r(i,3)
+        end if
+      end do
+    enddo
   enddo
 End Program
 
@@ -95,13 +125,14 @@ Subroutine Read_Input(atoms_per_species)
   read(10,*)
   read(10,*) nspecies
   read(10,*)
-  read(10,*) nframes
+  read(10,*) nframes, fstart, fstop
   read(10,*)
   natoms = 0
   do i=1,nspecies
-    read(10,*) atoms_per_species(i)
+    read(10,*) atoms_per_species(i), should_calc(i)
     natoms = natoms + atoms_per_species(i)
   enddo
+  write(*,*) natoms, "total atoms"
 End Subroutine
 
 Subroutine Read_Frame(r)
@@ -110,7 +141,6 @@ Subroutine Read_Frame(r)
   implicit none
   integer :: i,j,k
   real, dimension(natoms,3) :: r
-  read(ufile,*)
   read(ufile,*)
   read(ufile,*)
   read(ufile,*)
