@@ -3,6 +3,7 @@
 import numpy as np
 from scipy import interpolate,stats
 import argparse, sys
+import pickle
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-fname', default="TandS_STWHAM.out", type=str, help='dump file name')
@@ -152,6 +153,7 @@ def Error(total, block):
     for key in total_data:
         blockvals = []
         for b in range(nblocks): blockvals.append(block[b][key])
+        pickle.dump(blockvals,open(key + "_blockvals.pckl",'wb'),protocol=pickle.HIGHEST_PROTOCOL)
         err = np.std(blockvals)*t_val
         print("%.20s: %10.5f +/- %10.5f %s" % (key,total[key],err,units[key]))
         if key not in ["Tm","surface_tension","Gbar"]:

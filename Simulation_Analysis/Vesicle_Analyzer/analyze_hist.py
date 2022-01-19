@@ -1,18 +1,37 @@
 #!/usr/bin/env python
+"""
+Copyright 2022, Ezekiel Piskulich, Boston University
+
+This code takes the output of the vesicle calculation code, and then does the block averaging.
+
+Requirements: 
+    1) It expects that each individual simulation is subdivided into a separate directory that is numbered from start to stop
+    2) That you want to do some sort of block averaging. Exports 95% CI using nblocks
+
+nbins - # histogram binds
+natms - # lipid atoms
+start, stop - numbering of subdirs
+nblocks - # of blocks
+
+"""
 import numpy as np
 from scipy import stats
 import sys
 
 nbins = int(sys.argv[1])
 natms = int(sys.argv[2])
-nsubs = int(sys.argv[3])
-nblocks = int(sys.argv[4])
+start = int(sys.argv[3])
+stop  = int(sys.argv[4])
+nblocks = int(sys.argv[5])
 
 t_val = stats.t.ppf(0.975,nblocks-1)/np.sqrt(nblocks)
 
 def hist_data(filename,nbins,counts):
+    # This takes the raw histograms from the previous code and then combines all the different directories.
+    # Note - norm is only the VOLUME part
+    # Right now , hist is just the number of counts in those bins 
     x, hist, norm = [],[],[]
-    for subdir in range(1,nsubs):
+    for subdir in range(start,stop):
         tmpx, tmphist, tmpnorm = np.genfromtxt(str(subdir)+"/"+filename, usecols=(0,1,2),dtype=float, unpack=True)
         x=np.append(x, tmpx)
         hist=np.append(hist,tmphist)
@@ -24,21 +43,23 @@ def hist_data(filename,nbins,counts):
     singleX = np.reshape(x, (-1, nbins))[0]
     if counts == 0:
         counts = np.sum(hist,axis=1)[0]
-    #totalhist=np.sum(np.divide(hist.T,counts),axis=1)
-    totalhist = np.sum(np.divide(hist.T, norm.T), axis=1)
+    # This depends on the number of subdirs
+    print(np.shape(hist))
+    totalhist = np.sum(np.divide(hist.T, norm.T), axis=1)/np.shape(hist)[0]
     # Do the blocking
     bl_hist_raw=np.array_split(hist,nblocks)
+    print(np.shape(bl_hist_raw))
     norm_raw=np.array_split(norm,nblocks)
     bl_hist=[]
     for bl in range(nblocks):
-        bl_hist.append(np.sum(np.divide(np.array(bl_hist_raw[bl]).T,np.array(norm_raw[bl]).T),axis=1))
+        bl_hist.append(np.sum(np.divide(np.array(bl_hist_raw[bl]).T,np.array(norm_raw[bl]).T),axis=1)/float(np.shape(bl_hist_raw[bl])[0]))
     error=np.std(bl_hist,axis=0)*t_val
-    np.savetxt("final_"+filename, np.c_[singleX,totalhist/counts,error/counts])
+    np.savetxt("final_"+filename, np.c_[singleX,totalhist,error])
     return counts
 
 def thick_data(filename):
     hdr, ldr, rvc = [],[],[]
-    for subdir in range(1,nsubs):
+    for subdir in range(start,stop):
         tmphdr,tmpldr,tmprvc = np.genfromtxt(str(subdir)+"/"+filename, usecols=(1,2,3), unpack=True)
         hdr=np.append(hdr,tmphdr)
         ldr=np.append(ldr,tmpldr)

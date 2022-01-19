@@ -10,7 +10,7 @@ def run_stwham(histograms,minval, maxval,lambdas,eta, Ho,bl):
     hist=histograms
     nbins,nwalkers= np.shape(histograms)[0],np.shape(histograms)[1]
     print(nwalkers,nbins)
-    checklimit=0.001
+    checklimit=0.00001
     ### This is a function that calculates STWHAM
     def EffTemp(lambdavalue, H):
         # Evaluates the gREM effective temperature

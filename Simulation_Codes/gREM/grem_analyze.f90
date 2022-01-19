@@ -1,3 +1,17 @@
+! Copyright 2022 Ezekiel Piskulich, Boston University
+!
+! This software is used to analyze a single walker from a grem simulation after having
+! sorted using the grem_sort.f90 code.
+! 
+! This code takes a single input file (../grem.input) in the directory above from where the code has been run.
+! an example of this input file is included in the examples directory.
+!
+! For this code to work - walker files should be labeled as walker-XXX.lammpsdump
+! Output files: P2-XXX.dat area-XXX.dat thick-XXX.dat
+!
+! For COM calculations, assumes MARTINI standard of 72 g/mol 
+
+
 module constants
     implicit none
     real, parameter :: pi=DACOS(-1.D0)
@@ -41,7 +55,7 @@ program analyze_grem
   call read_input()
   write(*,*) fstart,fstop,nwindows,nlog
 
-  open(100, file="walker-"//trim(str(nfile))//".dat",status='old')
+  open(100, file="walker-"//trim(str(nfile))//".lammpsdump",status='old')
   open(101, file="area-"//trim(str(nfile))//".dat")
   open(102, file="thick-"//trim(str(nfile))//".dat")
   open(103, file="p2-"//trim(str(nfile))//".dat")

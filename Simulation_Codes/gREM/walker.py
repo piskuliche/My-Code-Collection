@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import numpy as np
 from scipy import stats
+import pickle
 
 def read_lammps_log(logbase,runindex,ndata):
     """
@@ -72,7 +73,7 @@ class walkers:
         print("Data written.")
     def post_process(self,nbins,nblocks):
         print("Beginning Post Processing")
-        self.calc_Teff()
+        self.calc_Teff(nblocks)
         for key in self.keys:
             self.hist_data(key,nbins,nblocks)
         print("Post Processing Completed")
@@ -118,19 +119,26 @@ class walkers:
         for r in range(self.nwalkers):
             for key in self.keys:
                 self.repdata[key][r]=self.walkdata[key].T[np.where(self.walkloc==r)]
-    def calc_Teff(self):
+    def calc_Teff(self,nblocks):
+        def block_av(data,nblocks):
+            bl_data=np.array_split(data,nblocks)
+            bl_av=np.average(bl_data,axis=1)
+            return bl_av
         try:
             self.lambdas=np.genfromtxt("lambdas.dat")
         except:
             exit("Error: need to generate lambdas.dat")
         self.Teff=np.zeros(self.nwalkers)
         self.Havg=np.zeros(self.nwalkers)
+        bl_Hav = []
         for r in range(self.nwalkers):
             self.Havg[r]=np.average(self.repdata["PotEng"][r])
+            bl_Hav.append(block_av(self.repdata["PotEng"][r],nblocks))
             print("For walker %d the average Enthalpy is %10.5f kcal/mol" % (r,self.Havg[r]))
             self.Teff[r] = self.lambdas[r] + self.eta*(self.Havg[r]-self.Ho)
         print(np.shape(self.Havg), np.shape(self.Teff), np.shape(self.lambdas))
         np.savetxt("Teff.dat",np.c_[self.Havg,self.Teff, self.lambdas])
+        pickle.dump(bl_Hav,open("bl_Teff.pckl",'wb'),protocol=pickle.HIGHEST_PROTOCOL)
     def hist_data(self,key,nbins,nblocks):
         try:
             self.bl_hist

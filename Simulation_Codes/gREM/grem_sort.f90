@@ -1,3 +1,11 @@
+! Copyright 2022, Zeke A. Piskulich, Boston University
+! This code takes gREM trajectories and sorts them into walker files (walker-XXX.lammpsdump)
+!
+! There is one required input file: grem.input found in the current directory.
+! This code outputs the walkers to a new directory.
+
+
+
 module constants
     implicit none
     real, parameter :: pi=DACOS(-1.D0)
@@ -40,7 +48,7 @@ program analyze_grem
   ! Open Output Files
   do k=1,nwindows
     outfiles(k) = 300 + k
-    open(outfiles(k), file="all_dumps/walker-"//trim(str(k-1))//".dat")
+    open(outfiles(k), file="all_dumps/walker-"//trim(str(k-1))//".lammpsdump")
   enddo !k
   
 
