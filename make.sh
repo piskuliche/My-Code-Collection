@@ -61,6 +61,8 @@ ln -s $homepath/Simulation_Codes/gREM/grem_sort.exe bin/grem
 ln -s $homepath/Simulation_Codes/gREM/grem_analyze.exe bin/grem
 ln -s $homepath/Simulation_Codes/gREM/set_analysis.py bin/grem
 ln -s $homepath/Simulation_Analysis/Vesicle_Analyzer/vesc_calc.exe bin/vesc
+ln -s $homepath/Simulation_Analysis/Vesicle_Analyzer/Calculate_Radius_of_Gyration.py bin/vesc
+ln -s $homepath/Simulation_Analysis/Vesicle_Analyzer/calc_com.exe bin/vesc
 ln -s $homepath/Simulation_Analysis/Vesicle_Analyzer/analyze_hist.py bin/vesc
 
 chmod 777 bin/msd/*

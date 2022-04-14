@@ -64,6 +64,9 @@ Program Main
     write(tempfilename2,"('coords.lmpstrj-',i0)") f
     open(ufile,file=tempfilename2,status='old')
     do frame=1,nframes
+      if (mod(frame,50) .eq. 0) then
+        write(*,*) frame
+      endif
       f_id = (f-fstart)*nframes + frame
       call Read_Frame(r)
       write(lfile,*) f_id, L(1), L(2), L(3)

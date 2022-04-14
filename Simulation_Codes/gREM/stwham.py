@@ -75,7 +75,7 @@ def run_stwham(histograms,minval, maxval,lambdas,eta, Ho,bl):
             betaH[i] = 0
         for rep in range(nwalkers):
             if (totpdf[i] > 0): #positive, not empty
-                H      = minval + (i*binsize)
+                H      = minval + (i*binsize+binsize/2)
                 weight = np.nan_to_num(1/EffTemp(lambdas[rep],H))
                 betaW[i] = betaW[i] + ((count[rep]*pdf[i][rep])/(totcount*totpdf[i])*weight)
         TH[i] = 1 / (betaH[i] + betaW[i])
