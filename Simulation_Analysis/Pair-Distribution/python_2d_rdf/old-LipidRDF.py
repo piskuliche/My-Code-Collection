@@ -5,7 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 import argparse
-import pickle
 
 def calc_RDF(ts,leaf,dr=0.1,rmax=18,dim=2):
     """
@@ -90,15 +89,13 @@ def calc_RDF(ts,leaf,dr=0.1,rmax=18,dim=2):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Calc RDF')
-    parser.add_argument('-fcount',default=10000,type=int,help='Number of frames per segment [default 1000]')
+    parser.add_argument('-fcount',default=10000,type=int,help='Number of frames [default 10000]')
     parser.add_argument('-dim',default=2,type=int,help='Number of dimensions [default 2]')
     parser.add_argument('-dr', default=0.1, type=float, help="Bin thickness [default 0.1]")
     parser.add_argument('-data', default="system.data", type=str, help="Data file [default system.data]")
     parser.add_argument('-infile', default="DPPC.fluid.lammpsdump", type=str, help="File trajectory name [default DPPC.fluid.lammpsdump]")
     parser.add_argument('-outfile',default="tot_rdf.out",type=str,help='Output file name [default tot_rdf.out]')
     parser.add_argument('-leafselec',default='type 4',type=str, help='Leaflet selection text [default "type 4"]')
-    parser.add_argument('-segid',default=0,type=int,help='Which segment to do?')
-    parser.add_argument('-op',default=0,type=int,help='Which option? [0] calc rdf [1] sum rdf')
     args = parser.parse_args()
     
     infile=args.infile
@@ -108,38 +105,26 @@ if __name__ == "__main__":
     fcount = args.fcount
     leafselec = args.leafselec
     datafile = args.data
-    segid = args.segid
-    op = args.op
-    if op == 0:
-        u = mda.Universe(datafile,infile)
-        count = 0
-        tot_rdf = []
-        tot_h = []
-        segstart,segstop = segid*fcount, (segid+1)*fcount
-        # Loop over trajectory
-        for ts in u.trajectory[segstart:segstop]:
-            leafs = LeafletFinder(u, leafselec)
-            leaf1,leaf2 = leafs.groups(0), leafs.groups(1) 
-            r,rdf,h_real = calc_RDF(u,leaf1,dr=dr)
-            tot_rdf.append(rdf)
-            tot_h.append(h_real)
-            r,rdf,h_real = calc_RDF(u,leaf2,dr=dr)
-            tot_rdf.append(rdf)
-            tot_h.append(h_real)
-            pickle.dump(tot_rdf,open("rdf_%d.pckl"%segid,'wb'))
-            pickle.dump(tot_h,open("h_%d.pckl"%segid,'wb'))
-            if segid == 0:
-                pickle.dump(r,open("r.pckl",'wb'))
-    else:
-        tot_rdf = []
-        tot_h = []
-        r = pickle.load(open("r.pckl",'rb'))
-        for seg in range(segid):
-            rdfs=pickle.load(open("rdf_%d.pckl"%seg,'rb'))
-            hs=pickle.load(open("h_%d.pckl"%seg,'rb'))
-            for rdf in rdfs:
-                tot_rdf.append(rdf)
-            for h in hs:
-                tot_h.append(h)
-        np.savetxt(outfile,np.c_[r,np.average(tot_rdf,axis=0),np.average(tot_h,axis=0)])
 
+
+    u = mda.Universe(datafile,infile)
+    count = 0
+    tot_rdf = []
+    tot_h = []
+    # Loop over trajectory
+    for ts in u.trajectory:
+        print(count)
+        if count%1000 == 0:
+            print("Current count is %d" % count)
+        leafs = LeafletFinder(u, leafselec)
+        leaf1,leaf2 = leafs.groups(0), leafs.groups(1) 
+        r,rdf,h_real = calc_RDF(u,leaf1,dr=dr)
+        tot_rdf.append(rdf)
+        tot_h.append(h_real)
+        r,rdf,h_real = calc_RDF(u,leaf2,dr=dr)
+        tot_rdf.append(rdf)
+        tot_h.append(h_real)
+        count += 1
+        if count == fcount:
+            np.savetxt(outfile,np.c_[r,np.average(tot_rdf,axis=0),np.average(tot_h,axis=0)])
+            exit()
