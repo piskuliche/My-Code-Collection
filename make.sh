@@ -64,6 +64,7 @@ ln -s $homepath/Simulation_Analysis/Vesicle_Analyzer/vesc_calc.exe bin/vesc
 ln -s $homepath/Simulation_Analysis/Vesicle_Analyzer/Calculate_Radius_of_Gyration.py bin/vesc
 ln -s $homepath/Simulation_Analysis/Vesicle_Analyzer/calc_com.exe bin/vesc
 ln -s $homepath/Simulation_Analysis/Vesicle_Analyzer/analyze_hist.py bin/vesc
+ln -s $homepath/Simulation_Analysis/Pair-Distribution/python_2d_rdf/Lipid-2D-RDF.py bin/gofr
 
 chmod 777 bin/msd/*
 chmod 777 bin/wham_gen/*

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import MDAnalysis as mda
 from MDAnalysis.analysis.leaflet import LeafletFinder
 import numpy as np
@@ -91,8 +92,10 @@ if __name__ == "__main__":
     parser.add_argument('-fcount',default=10000,type=int,help='Number of frames [default 10000]')
     parser.add_argument('-dim',default=2,type=int,help='Number of dimensions [default 2]')
     parser.add_argument('-dr', default=0.1, type=float, help="Bin thickness [default 0.1]")
+    parser.add_argument('-data', default="system.data", type=str, help="Data file [default system.data]")
     parser.add_argument('-infile', default="DPPC.fluid.lammpsdump", type=str, help="File trajectory name [default DPPC.fluid.lammpsdump]")
     parser.add_argument('-outfile',default="tot_rdf.out",type=str,help='Output file name [default tot_rdf.out]')
+    parser.add_argument('-leafselec',default='type 4',type=str, help='Leaflet selection text [default "type 4"]')
     args = parser.parse_args()
     
     infile=args.infile
@@ -100,16 +103,20 @@ if __name__ == "__main__":
     dr=args.dr
     dim=args.dim
     fcount = args.fcount
+    leafselec = args.leafselec
+    datafile = args.data
 
 
-    u = mda.Universe("system.data",infile)
+    u = mda.Universe(datafile,infile)
     count = 0
     tot_rdf = []
     tot_h = []
+    # Loop over trajectory
     for ts in u.trajectory:
+        print(count)
         if count%1000 == 0:
             print("Current count is %d" % count)
-        leafs = LeafletFinder(u, 'type 4')
+        leafs = LeafletFinder(u, leafselec)
         leaf1,leaf2 = leafs.groups(0), leafs.groups(1) 
         r,rdf,h_real = calc_RDF(u,leaf1,dr=dr)
         tot_rdf.append(rdf)
