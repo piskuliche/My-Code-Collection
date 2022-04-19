@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import MDAnalysis as mda
 from MDAnalysis.analysis.leaflet import LeafletFinder
 import numpy as np
@@ -69,11 +71,13 @@ if __name__ == "__main__":
     parser.add_argument('-Nb', default=5, type=int, help="Number of nearest neighbors")
     parser.add_argument('-infile', default="DPPC.fluid.lammpsdump", type=str, help="File trajectory name")
     parser.add_argument('-outfile',default="Q6.out",type=str,help='Output file name')
+    parser.add_argument('-fcount',default=10000,type=int,help='Number of configurations')
     args = parser.parse_args()
     
     infile=args.infile
     outfile=args.outfile
     Nb=args.Nb
+    fcount=args.fcount
 
     u = mda.Universe("system.data",infile)
     count = 0
@@ -87,7 +91,7 @@ if __name__ == "__main__":
         Qsix.append(calc_Q6(u,leaf2,Nb=Nb))
         count += 1
         f=open(outfile,'w')
-        if count == 10000:
+        if count == fcount:
             f.write("%s %10.5f\n" % (infile,np.average(Qsix)))
             f.close()
             exit()
