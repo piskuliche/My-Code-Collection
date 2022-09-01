@@ -17,6 +17,7 @@ mkdir bin/occupancy
 mkdir bin/wham
 mkdir bin/grem
 mkdir bin/vesc
+mkdir bin/bilayer
 
 
 # Sets up the symlinks
@@ -64,7 +65,10 @@ ln -s $homepath/Simulation_Analysis/Vesicle_Analyzer/vesc_calc.exe bin/vesc
 ln -s $homepath/Simulation_Analysis/Vesicle_Analyzer/Calculate_Radius_of_Gyration.py bin/vesc
 ln -s $homepath/Simulation_Analysis/Vesicle_Analyzer/calc_com.exe bin/vesc
 ln -s $homepath/Simulation_Analysis/Vesicle_Analyzer/analyze_hist.py bin/vesc
+ln -s $homepath/Simulation_Analysis/General-Lipid-Packing bin/vesc
 ln -s $homepath/Simulation_Analysis/Pair-Distribution/python_2d_rdf/Lipid-2D-RDF.py bin/gofr
+ln -s $homepath/Simulation_Analysis/Bilayer_Analysis/Lipid-Q6-Order-Parameter.py bin/bilayer
+
 
 chmod 777 bin/msd/*
 chmod 777 bin/wham_gen/*
@@ -79,3 +83,4 @@ chmod 777 bin/occupancy/*
 chmod 777 bin/wham/*
 chmod 777 bin/grem/*
 chmod 777 bin/vesc/*
+chmod 777 bin/bilayer/*

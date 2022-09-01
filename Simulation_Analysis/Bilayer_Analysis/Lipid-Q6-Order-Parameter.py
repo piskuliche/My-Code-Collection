@@ -72,26 +72,30 @@ if __name__ == "__main__":
     parser.add_argument('-infile', default="DPPC.fluid.lammpsdump", type=str, help="File trajectory name")
     parser.add_argument('-outfile',default="Q6.out",type=str,help='Output file name')
     parser.add_argument('-fcount',default=10000,type=int,help='Number of configurations')
+    parser.add_argument('-fout',default="DPPC_Q6-0.out",type=str,help='File for outputting full data')
     args = parser.parse_args()
     
     infile=args.infile
     outfile=args.outfile
     Nb=args.Nb
     fcount=args.fcount
+    fout = args.fout
 
     u = mda.Universe("system.data",infile)
     count = 0
     Qsix=[]
+    g=open(fout,'w')
     for ts in u.trajectory:
         if count%1000 == 0:
             print("Current count is %d" % count)
         leafs = LeafletFinder(u, 'type 4')
         leaf1,leaf2 = leafs.groups(0), leafs.groups(1) 
-        Qsix.append(calc_Q6(u,leaf1,Nb=Nb))
-        Qsix.append(calc_Q6(u,leaf2,Nb=Nb))
+        qtmp=(calc_Q6(u,leaf1,Nb=Nb)+calc_Q6(u,leaf2,Nb=Nb))/2
+        Qsix.append(qtmp)
         count += 1
         f=open(outfile,'w')
+        g.write("%10.5f\n" % qtmp)
         if count == fcount:
             f.write("%s %10.5f\n" % (infile,np.average(Qsix)))
             f.close()
-            exit()
+    g.close()

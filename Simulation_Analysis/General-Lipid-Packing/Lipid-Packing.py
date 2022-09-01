@@ -3,6 +3,7 @@
 import MDAnalysis as mda
 import numpy as np
 import argparse
+import pickle
 
 from MDAnalysis.analysis.leaflet import LeafletFinder
 from MDAnalysis.lib.distances import calc_bonds
@@ -121,11 +122,7 @@ def Lipid_Pointer_and_Neighbors(u,selection,Iargs):
         return np.array(points2d)
     box = u.dimensions
     sel = selection.split('residue')
-    vectors=[]
-    #fig = plt.figure()
-    
-    #ax = plt.axes(projection='3d')
-    vols = []
+    vols, vectors, positions = [],[],[]
     for lipid in sel:
 
         pointer=_pbc_dist(box,lipid.positions[1],lipid.positions[-1])
@@ -141,38 +138,35 @@ def Lipid_Pointer_and_Neighbors(u,selection,Iargs):
         normal_vec, pvec1, pvec2 = left[:,2], left[:,0], left[:,1]
         pos = patom.positions[0]
 
-        #ax.scatter3D(sel_P.positions.T[0],sel_P.positions.T[1],sel_P.positions.T[2])
-        #ax.quiver(pos[0],pos[1],pos[2],normal_vec[0],normal_vec[1],normal_vec[2],length=5) 
         # Do the Projection
         proj2d = Project_Points(sel_P.positions,pos,normal_vec,pvec1,pvec2)
 
         vor = Voronoi(proj2d)
         vol = voronoi_volumes(vor)
-        #voronoi_plot_2d(vor)
-        #plt.show()
 
         voltmp = vol[np.where(proj2d.T[0]==0)][0]
         if voltmp != np.inf:
             vols.append(voltmp)
-    #print(np.average(vols))  
-    #plt.show()
+        # save vectors for future plotting
+        vectors.append(normal_vec)
+        positions.append(pos)
     
-    return vols
+    return vols, vectors, positions
 
 
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-data',    default="equil.data",       type=str, help='Data file name [default=equil.data]')
-    parser.add_argument('-start',   default=0,                  type=int, help='Starting file')
-    parser.add_argument('-stop',    default=11,                 type=int, help='Stopping file')
-    parser.add_argument('-pre',     default='coords.lmpstrj-',  type=str, help='File prefix')
-    parser.add_argument('-keys',    default='atom.keys',        type=str, help='File with atom numbers inside')
-    parser.add_argument('-bb',      nargs='+',                  type=str, help='Names of building blocks')
-    parser.add_argument('-skip',    default=20,                 type=int, help='Number of frames to skip between frames')
-    parser.add_argument('-histbins',default=50,                 type=int, help='Number of bins for histogramming')
-    parser.add_argument('-subdir',  default="y",                type=str, help = 'Dumpfiles in numbered subdirs y/n')
+    parser.add_argument('-data',    default="equil.data",       type=str, help = 'Data file name [default=equil.data]')
+    parser.add_argument('-start',   default=0,                  type=int, help = 'Starting file')
+    parser.add_argument('-stop',    default=11,                 type=int, help = 'Stopping file')
+    parser.add_argument('-pre',     default='coords.lmpstrj-',  type=str, help = 'File prefix')
+    parser.add_argument('-keys',    default='atom.keys',        type=str, help = 'File with atom numbers inside')
+    parser.add_argument('-bb',      nargs='+',                  type=str, help = 'Names of building blocks')
+    parser.add_argument('-skip',    default=20,                 type=int, help = 'Number of frames to skip')
+    parser.add_argument('-histbins',default=50,                 type=int, help = 'Number of bins for histogramming')
+    parser.add_argument('-subdir',  default="y",                type=str, help ='Dumpfiles in numbered subdirs y/n')
     parser.add_argument('-pselect', default='type 6',           type=str, help = 'Selection language for P atom')
     Iargs = parser.parse_args()
 
@@ -195,8 +189,10 @@ if __name__ == "__main__":
     
     # Choose residues
     PC_sel,PO4_sel = Select_Resids(u,Iargs)
-    vol_in, vol_out = [],[]
-    N_in, N_out = [],[]
+    vol_in,   vol_out = [], []
+    N_in,     N_out   = [], []
+    vect_in,  pos_in  = [], []
+    vect_out, pos_out = [], []
     # Loop over Frames
     for ts in u.trajectory[::Iargs.skip]:
         print("Frame: %d" % ts.frame)
@@ -207,21 +203,27 @@ if __name__ == "__main__":
         N_out.append(nsrt[1])
 
         # Find voluems
-        tmp_vols_in=Lipid_Pointer_and_Neighbors(u,in_sel)
-        tmp_vols_out=Lipid_Pointer_and_Neighbors(u,out_sel)
+        tmp_vols_in, tmp_vec_in,  tmp_pos_in  = Lipid_Pointer_and_Neighbors(u,in_sel)
+        tmp_vols_out,tmp_vec_out, tmp_pos_out = Lipid_Pointer_and_Neighbors(u,out_sel)
         vol_in  = np.append(vol_in , tmp_vols_in)
         vol_out = np.append(vol_out, tmp_vols_out)
+        vect_in.append(tmp_vec_in)
+        vect_out.append(tmp_vec_out)
+        pos_in.append(tmp_pos_in)
+        pos_out.append(tmp_pos_out)
 
     # Do plotting but also save files with volumes and leaflets.
-    plt.hist(vol_in,bins=Iargs.histbins,range=(30,200), density=True)
-    plt.show()
-    print(np.average(vol_in)/100)
+    print("Inner Volume",np.average(vol_in)/100)
+    print("Outer Volume",np.average(vol_out)/100)
     np.savetxt("inner_lipid_volumes.dat",np.c_[vol_in])
-    plt.hist(vol_out,bins=Iargs.histbins,range=(30,200), density=True)
-    plt.show()
-    print(np.average(vol_out)/100)
     np.savetxt("outer_lipid_volumes.dat",np.c_[vol_out])
-    np.savetxt("N_per_leaf.dat",np.c_[N_in, N_out])
+    np.savetxt("N_per_leaf.dat",         np.c_[N_in, N_out])
+
+    pickle.dump(pos_in,   open('pos_in.pckl',  'wb'))
+    pickle.dump(pos_out,  open('pos_out.pckl', 'wb'))
+    pickle.dump(vect_in,  open('vect_in.pckl', 'wb'))
+    pickle.dump(vect_out, open('vect_out.pckl','wb'))
+
     
     
 

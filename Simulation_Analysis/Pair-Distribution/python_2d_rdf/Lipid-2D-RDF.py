@@ -3,7 +3,7 @@ import MDAnalysis as mda
 from MDAnalysis.analysis.leaflet import LeafletFinder
 import numpy as np
 import matplotlib.pyplot as plt
-import math
+import math,os
 import argparse
 import pickle
 
@@ -75,7 +75,7 @@ def calc_RDF(ts,leaf,dr=0.1,rmax=18,dim=2):
         # Loop over i+1, natoms
         for j in range(i+1,natoms):
             dist=_pbc_dist(leaf.positions[i],leaf.positions[j],L)
-            if dist < rmax+dr/2:
+            if dist < rmax:
                 counts[_find_nearest(xrdf,dist)] += 2
                 fcount += 1
         h_real = h_real + counts/natoms
@@ -84,8 +84,18 @@ def calc_RDF(ts,leaf,dr=0.1,rmax=18,dim=2):
     rdf = h_real/h_id
     # Finalize rdf normalization
     return xrdf, rdf,h_real
-                
-
+               
+def Weight_RDFs(r,rdfs,efile):
+    fnames, etypes = np.genfromtxt(efile,usecols=(0,1),dtype=str,unpack=True)
+    energies={}
+    nrdf=np.shape(rdfs)[0]
+    for i in range(len(etypes)):
+        energies[etypes[i]] = np.genfromtxt(fnames[i],usecols=0)
+        nskip = int(len(energies[etypes[i]])/nrdf)
+        energies[etypes[i]]=energies[etypes[i]][::nskip]
+        de = (energies[etypes[i]]-np.average(energies[etypes[i]]))[:-1]
+        erdf = -np.multiply(de[:,None],rdfs)
+        np.savetxt("%s_%s_rdf.out"%(label,etypes[i]),np.c_[r,np.average(erdf,axis=0)])
 
 
 if __name__ == "__main__":
@@ -98,7 +108,11 @@ if __name__ == "__main__":
     parser.add_argument('-outfile',default="tot_rdf.out",type=str,help='Output file name [default tot_rdf.out]')
     parser.add_argument('-leafselec',default='type 4',type=str, help='Leaflet selection text [default "type 4"]')
     parser.add_argument('-segid',default=0,type=int,help='Which segment to do?')
+    parser.add_argument('-rmax',default=18,type=float,help='Maximum distance in r')
     parser.add_argument('-op',default=0,type=int,help='Which option? [0] calc rdf [1] sum rdf')
+    parser.add_argument('-ew',default=0,type=int,help='[0] No EWeighting, [1] Eweighting')
+    parser.add_argument('-efile',default="flucts.inp", help='Name of file with energy types')
+    parser.add_argument('-label',default="PO4",help="Label to identify files")
     args = parser.parse_args()
     
     infile=args.infile
@@ -109,7 +123,17 @@ if __name__ == "__main__":
     leafselec = args.leafselec
     datafile = args.data
     segid = args.segid
+    rmax = args.rmax
     op = args.op
+    label = args.label
+    ew = args.ew
+    efile = args.efile
+    path="%s_rdfs"%label
+    if op == 0:
+        ew = 0
+        efile = None
+        os.makedirs("%s_rdfs"%label,exist_ok=True)
+
     if op == 0:
         u = mda.Universe(datafile,infile)
         count = 0
@@ -118,28 +142,32 @@ if __name__ == "__main__":
         segstart,segstop = segid*fcount, (segid+1)*fcount
         # Loop over trajectory
         for ts in u.trajectory[segstart:segstop]:
-            leafs = LeafletFinder(u, leafselec)
-            leaf1,leaf2 = leafs.groups(0), leafs.groups(1) 
-            r,rdf,h_real = calc_RDF(u,leaf1,dr=dr)
-            tot_rdf.append(rdf)
-            tot_h.append(h_real)
-            r,rdf,h_real = calc_RDF(u,leaf2,dr=dr)
-            tot_rdf.append(rdf)
-            tot_h.append(h_real)
-            pickle.dump(tot_rdf,open("rdf_%d.pckl"%segid,'wb'))
-            pickle.dump(tot_h,open("h_%d.pckl"%segid,'wb'))
+            print(ts.frame)
+            leafs = LeafletFinder(u, leafselec,pbc=True)
+            leaf1,leaf2 = leafs.groups(0), leafs.groups(1)
+            print("leaf1")
+            r,rdf1,h_real1 = calc_RDF(u,leaf1,dr=dr,rmax=rmax)
+            print("leaf2")
+            r,rdf2,h_real2 = calc_RDF(u,leaf2,dr=dr,rmax=rmax)
+            tot_rdf.append((rdf1+rdf2)/2)
+            tot_h.append((h_real1+h_real2)/2)
+            pickle.dump(tot_rdf,open(path+"/%s_rdf_%d.pckl"%(label,segid),'wb'))
+            pickle.dump(tot_h,open(path+"/%s_h_%d.pckl"%(label,segid),'wb'))
             if segid == 0:
-                pickle.dump(r,open("r.pckl",'wb'))
+                pickle.dump(r,open(path+"/%s_r.pckl"%label,'wb'))
     else:
         tot_rdf = []
         tot_h = []
-        r = pickle.load(open("r.pckl",'rb'))
+        r = pickle.load(open(path+"/%s_r.pckl"%label,'rb'))
         for seg in range(segid):
-            rdfs=pickle.load(open("rdf_%d.pckl"%seg,'rb'))
-            hs=pickle.load(open("h_%d.pckl"%seg,'rb'))
+            rdfs=pickle.load(open(path+"/%s_rdf_%d.pckl"%(label,seg),'rb'))
+            hs=pickle.load(open(path+"/%s_h_%d.pckl"%(label,seg),'rb'))
+            print(seg,np.shape(rdfs),np.shape(hs))
             for rdf in rdfs:
                 tot_rdf.append(rdf)
             for h in hs:
                 tot_h.append(h)
-        np.savetxt(outfile,np.c_[r,np.average(tot_rdf,axis=0),np.average(tot_h,axis=0)])
+        np.savetxt(label+"_"+outfile,np.c_[r,np.average(tot_rdf,axis=0),np.average(tot_h,axis=0)])
+        if ew == 1: 
+            Weight_RDFs(r,tot_rdf,efile)
 

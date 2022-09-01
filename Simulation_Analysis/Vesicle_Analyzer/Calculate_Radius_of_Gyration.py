@@ -4,6 +4,7 @@ import numpy as np
 import argparse
 from MDAnalysis.analysis.base import AnalysisBase,AnalysisFromFunction,analysis_class
 from MDAnalysis.analysis.leaflet import LeafletFinder
+from scipy.spatial import SphericalVoronoi
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-data', default="equil.data", type=str, help='Data file name [default=equil.data]')
@@ -67,6 +68,7 @@ u = mda.Universe(datafile,trjfiles,dt=200.0)
 print("Data has been read")
 select_PS = u.select_atoms("resid 1")
 # Need to figure out initial resid
+print(bb_choice)
 start_residue = np.sum(building_blocks[bb_choice[0]])+1
 stop_residue = start_residue + building_blocks[bb_choice[1]][0]-1
 # Final Selections
@@ -87,6 +89,7 @@ for ts in u.trajectory[::100]:
     L = LeafletFinder(u,select_PC_PO4,pbc=True,sparse=False)
     # Count total num leaflets
     leaf_sizes = L.sizes()
+    print(leaf_sizes)
     # Create list of leaflets,keys
     n_per_leaf,key_index = [],[]
     for key in leaf_sizes:
@@ -102,6 +105,11 @@ for ts in u.trajectory[::100]:
     lfone.append(tmp_n_lf1)
     lftwo.append(tmp_n_lf2)
     lfother.append(tmp_other)
+    print(lf1)
+    print(np.shape(lf1.positions))
+    com=L.groups(0).center_of_mass()
+    rad=select_PC_PO4.radius_of_gyration(pbc=True)
+    #SphericalVoronoi(L.groups(0).positions,radius=rad,center=com)
     num_leafs.append(len(n_per_leaf))
     timesteps.append(ts.time)
     PC_Rgs.append(select_PC.radius_of_gyration(pbc=False))

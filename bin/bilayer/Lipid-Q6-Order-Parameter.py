@@ -1,0 +1,1 @@
+/usr2/postdoc/piskulic/My-Code-Collection//Simulation_Analysis/Bilayer_Analysis/Lipid-Q6-Order-Parameter.py
